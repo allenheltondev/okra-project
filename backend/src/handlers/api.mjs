@@ -4,26 +4,29 @@ import { createDbClient } from '../../scripts/db-client.mjs';
 const app = new Router();
 
 app.get('/health', async () => {
-  try {
-    const client = await createDbClient();
-    await client.connect();
-    await client.query('SELECT 1');
-    await client.end();
-    return {
-      ok: true,
-      service: 'okra-project-api',
-      runtime: process.version,
-      db: 'connected'
-    };
-  } catch (error) {
-    return {
-      ok: false,
-      service: 'okra-project-api',
-      runtime: process.version,
-      db: 'error',
-      error: error.message
-    };
+  const response = {
+    ok: true,
+    service: 'okra-project-api',
+    runtime: process.version
+  };
+
+  if (process.env.DATABASE_URL) {
+    try {
+      const client = await createDbClient();
+      await client.connect();
+      await client.query('SELECT 1');
+      await client.end();
+      response.db = 'connected';
+    } catch (error) {
+      response.ok = false;
+      response.db = 'error';
+      response.error = error.message;
+    }
+  } else {
+    response.db = 'not configured';
   }
+
+  return response;
 });
 
 app.get('/version', () => {
