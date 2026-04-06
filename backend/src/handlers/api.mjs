@@ -68,12 +68,21 @@ app.post('/submissions', async ({ req }) => {
       schema: createSubmissionRequestSchema
     });
 
-    const idempotencyKey = req.headers.get('idempotency-key') ?? req.headers.get('Idempotency-Key') ?? '';
+    const idempotencyKey =
+      req.headers.get('idempotency-key') ?? req.headers.get('Idempotency-Key') ?? '';
 
-    const body = await idempotentCreateSubmission({
-      idempotencyKey,
-      payload
-    });
+    const body = idempotencyKey
+      ? await idempotentCreateSubmission({ idempotencyKey, payload })
+      : await (async () => {
+          logger.info('No Idempotency-Key header provided; processing as non-idempotent request');
+          const pool = await getDbPool();
+          const created = await insertPendingSubmission(pool, payload);
+          return {
+            submissionId: created.id,
+            status: created.status,
+            createdAt: created.created_at
+          };
+        })();
 
     validate({
       payload: body,
