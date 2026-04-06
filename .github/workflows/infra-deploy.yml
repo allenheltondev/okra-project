@@ -4,7 +4,6 @@ on:
   push:
     branches:
       - main
-      - master
     paths:
       - 'backend/template.yaml'
       - 'backend/samconfig.toml'
@@ -38,22 +37,11 @@ jobs:
       - name: Setup SAM CLI
         uses: aws-actions/setup-sam@v2
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (prod)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE }}
           aws-region: ${{ env.AWS_REGION }}
-
-      - name: Resolve environment
-        id: env
-        run: |
-          if [ "${GITHUB_REF_NAME}" = "main" ] || [ "${GITHUB_REF_NAME}" = "master" ]; then
-            echo "config_env=prod" >> "$GITHUB_OUTPUT"
-            echo "stack_name=okra-project-prod" >> "$GITHUB_OUTPUT"
-          else
-            echo "config_env=dev" >> "$GITHUB_OUTPUT"
-            echo "stack_name=okra-project-dev" >> "$GITHUB_OUTPUT"
-          fi
 
       - name: Cache SAM build artifacts
         uses: actions/cache@v4
@@ -66,18 +54,18 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Deploy SAM stack
+      - name: Deploy SAM stack (prod)
         working-directory: backend
         run: |
           sam build --template-file template.yaml --cached --parallel
           sam deploy \
-            --config-env "${{ steps.env.outputs.config_env }}" \
-            --stack-name "${{ steps.env.outputs.stack_name }}" \
+            --config-env prod \
+            --stack-name okra-project-prod \
             --no-fail-on-empty-changeset
 
       - name: Print stack outputs
         run: |
           aws cloudformation describe-stacks \
-            --stack-name "${{ steps.env.outputs.stack_name }}" \
+            --stack-name okra-project-prod \
             --query "Stacks[0].Outputs[*].[OutputKey,OutputValue]" \
             --output table

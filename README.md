@@ -75,9 +75,10 @@ cd backend
 sam deploy --guided
 ```
 
-For GitHub deploy workflows, add repository secret:
+For GitHub deploy workflows, add repository secrets:
 
-- `AWS_DEPLOY_ROLE_ARN`
+- `AWS_DEPLOY_ROLE_STAGE` (PR preview/staging deploys)
+- `AWS_DEPLOY_ROLE` (main production deploys)
 
 Branch/environment behavior:
 

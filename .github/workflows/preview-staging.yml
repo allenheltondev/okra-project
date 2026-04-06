@@ -36,10 +36,10 @@ jobs:
       - name: Setup SAM CLI
         uses: aws-actions/setup-sam@v2
 
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (stage)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_STAGE }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Cache SAM build artifacts
@@ -115,10 +115,10 @@ jobs:
       STACK_NAME: okra-project-preview-pr-${{ github.event.pull_request.number }}
 
     steps:
-      - name: Configure AWS credentials
+      - name: Configure AWS credentials (stage)
         uses: aws-actions/configure-aws-credentials@v4
         with:
-          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_STAGE }}
           aws-region: ${{ env.AWS_REGION }}
 
       - name: Delete preview stack
