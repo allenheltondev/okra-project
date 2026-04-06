@@ -240,6 +240,11 @@ Resources:
                 - dynamodb:Query
                 - dynamodb:Scan
               Resource: !GetAtt IdempotencyTable.Arn
+            - Effect: Allow
+              Action:
+                - dsql:DbConnect
+                - dsql:DbConnectAdmin
+              Resource: "*"
       Events:
         ApiProxy:
           Type: Api
