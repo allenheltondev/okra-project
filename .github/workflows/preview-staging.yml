@@ -72,6 +72,21 @@ jobs:
           sam build --template-file template.yaml --cached --parallel
           sam deploy --config-file samconfig.generated.toml --config-env stage
 
+      - name: Resolve preview API base URL
+        id: api
+        run: |
+          API_ROOT=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --query "Stacks[0].Outputs[?OutputKey=='HttpApiUrl'].OutputValue" \
+            --output text)
+          API_BASE_URL="${API_ROOT%/}/api"
+          echo "api_base_url=$API_BASE_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Run integration tests against preview backend
+        env:
+          API_BASE_URL: ${{ steps.api.outputs.api_base_url }}
+        run: npm run test:integration
+
       - name: Build frontend
         run: npm run --workspace okra-frontend build
 
