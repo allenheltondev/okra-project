@@ -121,6 +121,36 @@ jobs:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_STAGE }}
           aws-region: ${{ env.AWS_REGION }}
 
+      - name: Resolve preview buckets (if stack exists)
+        id: buckets
+        shell: bash
+        run: |
+          set +e
+          FRONTEND_BUCKET=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --query "Stacks[0].Outputs[?OutputKey=='FrontendBucketName'].OutputValue" \
+            --output text 2>/dev/null)
+          MEDIA_BUCKET=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --query "Stacks[0].Outputs[?OutputKey=='MediaBucketName'].OutputValue" \
+            --output text 2>/dev/null)
+          set -e
+
+          echo "frontend_bucket=$FRONTEND_BUCKET" >> "$GITHUB_OUTPUT"
+          echo "media_bucket=$MEDIA_BUCKET" >> "$GITHUB_OUTPUT"
+
+      - name: Empty preview frontend bucket
+        if: steps.buckets.outputs.frontend_bucket != ''
+        run: aws s3 rm "s3://${{ steps.buckets.outputs.frontend_bucket }}" --recursive || true
+
+      - name: Empty preview media bucket
+        if: steps.buckets.outputs.media_bucket != ''
+        run: aws s3 rm "s3://${{ steps.buckets.outputs.media_bucket }}" --recursive || true
+
       - name: Delete preview stack
         run: |
           aws cloudformation delete-stack --stack-name "$STACK_NAME" || true
+
+      - name: Wait for stack deletion
+        run: |
+          aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME" || true
