@@ -54,6 +54,9 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Install esbuild globally for SAM
+        run: npm install -g esbuild
+
       - name: Deploy SAM stack (prod)
         working-directory: backend
         run: |
