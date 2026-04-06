@@ -1,17 +1,7 @@
-import pg from 'pg';
-
-const { Client } = pg;
-
-function getDatabaseUrl() {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    throw new Error('DATABASE_URL is required for seeding');
-  }
-  return databaseUrl;
-}
+import { createDbClient } from './db-client.mjs';
 
 async function seed() {
-  const client = new Client({ connectionString: getDatabaseUrl() });
+  const client = await createDbClient({ admin: false });
   await client.connect();
 
   try {

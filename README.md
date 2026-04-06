@@ -61,13 +61,26 @@ npm run lint
 npm run test
 ```
 
-Database migration + seed (requires `DATABASE_URL`):
+### Database migration + seed (Aurora DSQL)
+
+Set either a raw `DATABASE_URL` **or** DSQL IAM token inputs.
 
 ```bash
 cd backend
-DATABASE_URL=postgres://... npm run db:migrate
-DATABASE_URL=postgres://... npm run db:seed
+
+# DSQL IAM mode (recommended)
+set DSQL_HOSTNAME=<cluster-endpoint>.dsql.us-east-1.on.aws
+set DSQL_DB_USER=admin
+set DSQL_DATABASE=postgres
+set AWS_REGION=us-east-1
+npm run db:migrate
+npm run db:seed
+
+# Optional fallback mode
+# set DATABASE_URL=postgres://...
 ```
+
+Migration script uses admin token auth (`getDbConnectAdminAuthToken`), seed uses standard token auth (`getDbConnectAuthToken`).
 
 Backend local invoke example:
 
@@ -92,7 +105,7 @@ For GitHub deploy workflows, add repository secrets:
 Branch/environment behavior:
 
 - Pull requests -> isolated preview stack: `okra-project-preview-pr-<PR_NUMBER>` (auto-created and auto-deleted on PR close)
-- Push to `main`/`master` -> production stack: `okra-project-prod`
+- Push to `main` -> production stack: `okra-project-prod`
 
 Region is hard-coded as `us-east-1`.
 

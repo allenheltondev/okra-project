@@ -1,21 +1,11 @@
 import { readdir, readFile } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
-import pg from 'pg';
-
-const { Client } = pg;
+import { createDbClient } from './db-client.mjs';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const migrationsDir = path.resolve(__dirname, '../../db/migrations');
-
-function getDatabaseUrl() {
-  const databaseUrl = process.env.DATABASE_URL;
-  if (!databaseUrl) {
-    throw new Error('DATABASE_URL is required for migrations');
-  }
-  return databaseUrl;
-}
 
 async function ensureMigrationsTable(client) {
   await client.query(`
@@ -35,7 +25,7 @@ async function listMigrationFiles() {
 }
 
 async function applyMigrations() {
-  const client = new Client({ connectionString: getDatabaseUrl() });
+  const client = await createDbClient({ admin: true });
   await client.connect();
 
   try {
