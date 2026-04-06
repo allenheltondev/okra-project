@@ -50,6 +50,8 @@ Resources:
     Properties:
       TracingEnabled: true
       StageName: api
+      DefinitionUri: openapi.yaml
+      MergeDefinitions: true
 
   FrontendBucket:
     Type: AWS::S3::Bucket
@@ -157,9 +159,9 @@ Resources:
       Handler: src/handlers/health.handler
       Events:
         HealthRoute:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref ApiGateway
+            RestApiId: !Ref ApiGateway
             Path: /health
             Method: GET
 
