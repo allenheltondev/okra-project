@@ -59,6 +59,11 @@ jobs:
       - name: Test backend
         run: npm run --workspace okra-backend test
 
+      - name: Run stage migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_STAGE }}
+        run: npm run --workspace okra-backend db:migrate
+
       - name: Install esbuild globally for SAM
         run: npm install -g esbuild
 
