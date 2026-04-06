@@ -54,7 +54,7 @@ Resources:
         Fn::Transform:
           Name: AWS::Include
           Parameters:
-            Location: ./publicapi.yaml
+            Location: ./openapi.yaml
 
   FrontendBucket:
     Type: AWS::S3::Bucket
