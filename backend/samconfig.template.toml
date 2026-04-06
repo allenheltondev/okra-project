@@ -1,14 +1,14 @@
 version = 0.1
 
-[dev.deploy.parameters]
-stack_name = "okra-project-dev"
+[stage.deploy.parameters]
+stack_name = "__STACK_NAME_STAGE__"
 resolve_s3 = true
-s3_prefix = "okra-project-dev"
+s3_prefix = "__STACK_NAME_STAGE__"
 region = "us-east-1"
 confirm_changeset = false
 capabilities = "CAPABILITY_IAM"
 image_repositories = []
-# parameter_overrides can be supplied by CI or CLI when needed.
+parameter_overrides = "DsqlHostname=__DSQL_HOSTNAME_STAGE__"
 
 [prod.deploy.parameters]
 stack_name = "okra-project-prod"
@@ -18,4 +18,4 @@ region = "us-east-1"
 confirm_changeset = false
 capabilities = "CAPABILITY_IAM"
 image_repositories = []
-# parameter_overrides can be supplied by CI or CLI when needed.
+parameter_overrides = "DsqlHostname=__DSQL_HOSTNAME_PROD__"

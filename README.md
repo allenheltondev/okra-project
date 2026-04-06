@@ -49,7 +49,8 @@ A simple, maintainable web app for Olivia's Garden Foundation to show where Clem
 
 - `frontend/` - Vite + React app (S3/CloudFront deploy target)
 - `backend/` - Lambda handlers + tests + linting + SAM template
-- `db/ddl.sql` - Aurora DSQL schema for MVP
+- `db/ddl.sql` - Aurora DSQL schema reference for MVP
+- `db/migrations/` - ordered SQL migrations applied by backend migration runner
 - `docs/issues.md` - dependency-ordered issue plan
 
 ## Quick Start
@@ -59,6 +60,29 @@ npm install
 npm run lint
 npm run test
 ```
+
+### Database migration + seed (Aurora DSQL)
+
+Migrations/seeding support three connection modes (in priority order):
+
+1. `DATABASE_URL` (fallback)
+2. `DSQL_HOSTNAME` + IAM token signer
+3. Auto-resolve hostname from CloudFormation output (`DsqlHostnameInUse`) using `AWS_STACK_NAME`/`STACK_NAME`
+
+Recommended (minimal manual wiring):
+
+```bash
+cd backend
+set AWS_REGION=us-east-1
+set AWS_STACK_NAME=okra-project-dev
+set DSQL_DB_USER=admin
+set DSQL_DATABASE=postgres
+npm run db:migrate
+npm run db:seed
+```
+
+Migration script uses admin token auth (`getDbConnectAdminAuthToken`), seed uses standard token auth (`getDbConnectAuthToken`).
+Set `DsqlHostname` once in `backend/samconfig.toml` per environment so stack output resolution works automatically.
 
 Backend local invoke example:
 
@@ -79,13 +103,16 @@ For GitHub deploy workflows, add repository secrets:
 
 - `AWS_DEPLOY_ROLE_STAGE` (PR preview/staging deploys)
 - `AWS_DEPLOY_ROLE` (main production deploys)
+- `DSQL_HOSTNAME_BASE` (base hostname prefix; workflows derive `-stage` and `-prod`)
 
 Branch/environment behavior:
 
 - Pull requests -> isolated preview stack: `okra-project-preview-pr-<PR_NUMBER>` (auto-created and auto-deleted on PR close)
-- Push to `main`/`master` -> production stack: `okra-project-prod`
+- Push to `main` -> production stack: `okra-project-prod`
 
 Region is hard-coded as `us-east-1`.
+
+Deploy workflows render `backend/samconfig.generated.toml` from `backend/samconfig.template.toml` and then run `sam deploy` with that generated config.
 
 ## Runtime Baseline
 
