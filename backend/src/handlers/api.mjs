@@ -1,7 +1,7 @@
 import { Router } from '@aws-lambda-powertools/event-handler/http';
 import { createDbClient } from '../../scripts/db-client.mjs';
-import { createUploadIntent, isUuid, validateUploadIntentPayload } from '../services/photos.mjs';
-import { insertPendingSubmission, validateSubmissionPayload } from '../services/submissions.mjs';
+import { createPhotoUploadIntent, validatePhotoCreatePayload } from '../services/photos.mjs';
+import { insertPendingSubmissionWithPhotos, validateSubmissionPayload } from '../services/submissions.mjs';
 
 const app = new Router();
 
@@ -38,6 +38,37 @@ app.get('/version', () => {
   };
 });
 
+app.post('/photos', async ({ req }) => {
+  const payload = await req.json();
+  const validation = validatePhotoCreatePayload(payload);
+
+  if (!validation.valid) {
+    return {
+      statusCode: 422,
+      body: {
+        error: 'RequestValidationError',
+        message: 'Validation failed for request',
+        details: {
+          issues: validation.issues
+        }
+      }
+    };
+  }
+
+  const client = await createDbClient();
+  await client.connect();
+
+  try {
+    const intent = await createPhotoUploadIntent(client, payload);
+    return {
+      statusCode: 201,
+      body: intent
+    };
+  } finally {
+    await client.end();
+  }
+});
+
 app.post('/submissions', async ({ req }) => {
   const payload = await req.json();
   const validation = validateSubmissionPayload(payload);
@@ -59,7 +90,7 @@ app.post('/submissions', async ({ req }) => {
   await client.connect();
 
   try {
-    const created = await insertPendingSubmission(client, payload);
+    const created = await insertPendingSubmissionWithPhotos(client, payload);
     return {
       statusCode: 201,
       body: {
@@ -68,52 +99,13 @@ app.post('/submissions', async ({ req }) => {
         createdAt: created.created_at
       }
     };
-  } finally {
-    await client.end();
-  }
-});
-
-app.post('/submissions/:submissionId/photos/upload-intent', async ({ req, params }) => {
-  const submissionId = params?.submissionId;
-  const payload = await req.json();
-
-  const issues = [];
-  if (!submissionId || !isUuid(submissionId)) {
-    issues.push('submissionId path parameter must be a valid UUID');
-  }
-
-  const validation = validateUploadIntentPayload(payload);
-  issues.push(...validation.issues);
-
-  if (issues.length > 0) {
-    return {
-      statusCode: 422,
-      body: {
-        error: 'RequestValidationError',
-        message: 'Validation failed for request',
-        details: {
-          issues
-        }
-      }
-    };
-  }
-
-  const client = await createDbClient();
-  await client.connect();
-
-  try {
-    const intent = await createUploadIntent(client, submissionId, payload);
-    return {
-      statusCode: 201,
-      body: intent
-    };
   } catch (error) {
-    if (error?.code === 'SUBMISSION_NOT_FOUND') {
+    if (error?.code === 'INVALID_PHOTO_IDS') {
       return {
-        statusCode: 404,
+        statusCode: 422,
         body: {
-          error: 'SubmissionNotFound',
-          message: `Submission ${submissionId} was not found`
+          error: 'InvalidPhotoIds',
+          message: error.message
         }
       };
     }

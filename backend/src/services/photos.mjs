@@ -16,7 +16,7 @@ function getAwsRegion() {
   return process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? 'us-east-1';
 }
 
-export function validateUploadIntentPayload(payload) {
+export function validatePhotoCreatePayload(payload) {
   const issues = [];
 
   if (!payload || typeof payload !== 'object') {
@@ -45,22 +45,10 @@ export function isUuid(value) {
   );
 }
 
-async function ensureSubmissionExists(client, submissionId) {
-  const result = await client.query('select id from submissions where id = $1', [submissionId]);
-  return result.rowCount > 0;
-}
-
-export async function createUploadIntent(client, submissionId, payload) {
-  const exists = await ensureSubmissionExists(client, submissionId);
-  if (!exists) {
-    const error = new Error('submission not found');
-    error.code = 'SUBMISSION_NOT_FOUND';
-    throw error;
-  }
-
+export async function createPhotoUploadIntent(client, payload) {
   const mediaBucket = getMediaBucketName();
   const photoId = randomUUID();
-  const objectKey = `submissions/${submissionId}/${photoId}/original`;
+  const objectKey = `temp-photos/${photoId}/original`;
 
   await client.query(
     `
@@ -69,10 +57,12 @@ export async function createUploadIntent(client, submissionId, payload) {
         submission_id,
         original_s3_bucket,
         original_s3_key,
-        status
-      ) values ($1, $2, $3, $4, 'uploaded')
+        mime_type,
+        status,
+        expires_at
+      ) values ($1, null, $2, $3, $4, 'uploaded', now() + interval '1 hour')
     `,
-    [photoId, submissionId, mediaBucket, objectKey]
+    [photoId, mediaBucket, objectKey, payload.contentType]
   );
 
   const s3 = new S3Client({ region: getAwsRegion() });

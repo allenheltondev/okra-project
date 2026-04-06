@@ -28,6 +28,7 @@ paths:
                     example: okra-project-api
                   runtime:
                     type: string
+
   /version:
     get:
       operationId: getVersion
@@ -52,71 +53,12 @@ paths:
                     type: string
                     example: 0.1.0
 
-  /submissions:
-    post:
-      operationId: createSubmission
-      summary: Create a pending submission for review
-      tags:
-        - submissions
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema:
-              type: object
-              required:
-                - rawLocationText
-                - displayLat
-                - displayLng
-              properties:
-                contributorName:
-                  type: string
-                contributorEmail:
-                  type: string
-                storyText:
-                  type: string
-                rawLocationText:
-                  type: string
-                privacyMode:
-                  type: string
-                  enum: [exact, nearby, neighborhood, city]
-                displayLat:
-                  type: number
-                displayLng:
-                  type: number
-      responses:
-        '201':
-          description: Submission created
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - submissionId
-                  - status
-                properties:
-                  submissionId:
-                    type: string
-                  status:
-                    type: string
-                    example: pending_review
-                  createdAt:
-                    type: string
-        '422':
-          description: Validation error
-
-  /submissions/{submissionId}/photos/upload-intent:
+  /photos:
     post:
       operationId: createPhotoUploadIntent
-      summary: Create pre-signed upload URL and photo row for a submission
+      summary: Create temporary photo record and pre-signed upload URL
       tags:
         - media
-      parameters:
-        - in: path
-          name: submissionId
-          required: true
-          schema:
-            type: string
       requestBody:
         required: true
         content:
@@ -152,7 +94,64 @@ paths:
                     type: string
                   expiresInSeconds:
                     type: number
-        '404':
-          description: Submission not found
+        '422':
+          description: Validation error
+
+  /submissions:
+    post:
+      operationId: createSubmission
+      summary: Create a pending submission for review and claim uploaded photos
+      tags:
+        - submissions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rawLocationText
+                - displayLat
+                - displayLng
+                - photoIds
+              properties:
+                contributorName:
+                  type: string
+                contributorEmail:
+                  type: string
+                storyText:
+                  type: string
+                rawLocationText:
+                  type: string
+                privacyMode:
+                  type: string
+                  enum: [exact, nearby, neighborhood, city]
+                displayLat:
+                  type: number
+                displayLng:
+                  type: number
+                photoIds:
+                  type: array
+                  minItems: 1
+                  items:
+                    type: string
+      responses:
+        '201':
+          description: Submission created
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - submissionId
+                  - status
+                properties:
+                  submissionId:
+                    type: string
+                  status:
+                    type: string
+                    example: pending_review
+                  createdAt:
+                    type: string
         '422':
           description: Validation error

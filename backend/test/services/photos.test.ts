@@ -1,8 +1,8 @@
-import { isUuid, validateUploadIntentPayload } from '../../src/services/photos.mjs';
+import { isUuid, validatePhotoCreatePayload } from '../../src/services/photos.mjs';
 
-describe('photo upload intent validation', () => {
+describe('photo create validation', () => {
   it('accepts supported contentType', () => {
-    const result = validateUploadIntentPayload({
+    const result = validatePhotoCreatePayload({
       contentType: 'image/jpeg',
       fileName: 'okra.jpg'
     });
@@ -11,7 +11,7 @@ describe('photo upload intent validation', () => {
   });
 
   it('rejects unsupported contentType', () => {
-    const result = validateUploadIntentPayload({
+    const result = validatePhotoCreatePayload({
       contentType: 'application/pdf'
     });
 

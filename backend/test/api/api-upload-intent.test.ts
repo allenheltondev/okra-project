@@ -14,7 +14,7 @@ function makeRestApiEvent(path, method = 'POST', body = null) {
     pathParameters: null,
     stageVariables: null,
     requestContext: {
-      requestId: 'req-upload-intent',
+      requestId: 'req-photo-intent',
       path,
       stage: 'api',
       identity: {
@@ -27,15 +27,9 @@ function makeRestApiEvent(path, method = 'POST', body = null) {
   };
 }
 
-describe('upload intent endpoint validation', () => {
-  it('returns 422 for invalid submissionId and missing contentType', async () => {
-    const res = await handler(
-      makeRestApiEvent(
-        '/submissions/not-a-uuid/photos/upload-intent',
-        'POST',
-        JSON.stringify({ fileName: 'okra.jpg' })
-      )
-    );
+describe('photo intent endpoint validation', () => {
+  it('returns 422 for missing contentType', async () => {
+    const res = await handler(makeRestApiEvent('/photos', 'POST', JSON.stringify({ fileName: 'okra.jpg' })));
 
     expect(res.statusCode).toBe(422);
     const payload = JSON.parse(String(res.body));
