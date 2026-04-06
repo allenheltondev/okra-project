@@ -49,7 +49,8 @@ A simple, maintainable web app for Olivia's Garden Foundation to show where Clem
 
 - `frontend/` - Vite + React app (S3/CloudFront deploy target)
 - `backend/` - Lambda handlers + tests + linting + SAM template
-- `db/ddl.sql` - Aurora DSQL schema for MVP
+- `db/ddl.sql` - Aurora DSQL schema reference for MVP
+- `db/migrations/` - ordered SQL migrations applied by backend migration runner
 - `docs/issues.md` - dependency-ordered issue plan
 
 ## Quick Start
@@ -58,6 +59,14 @@ A simple, maintainable web app for Olivia's Garden Foundation to show where Clem
 npm install
 npm run lint
 npm run test
+```
+
+Database migration + seed (requires `DATABASE_URL`):
+
+```bash
+cd backend
+DATABASE_URL=postgres://... npm run db:migrate
+DATABASE_URL=postgres://... npm run db:seed
 ```
 
 Backend local invoke example:
