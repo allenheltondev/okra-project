@@ -84,6 +84,17 @@ npm run db:seed
 Migration script uses admin token auth (`getDbConnectAdminAuthToken`), seed uses standard token auth (`getDbConnectAuthToken`).
 Set `DsqlHostname` once in `backend/samconfig.toml` per environment so stack output resolution works automatically.
 
+Integration test script (status codes + response assertions):
+
+```bash
+# root
+API_BASE_URL=https://<api-id>.execute-api.us-east-1.amazonaws.com/api npm run test:integration
+
+# backend workspace
+cd backend
+API_BASE_URL=https://<api-id>.execute-api.us-east-1.amazonaws.com/api npm run test:integration
+```
+
 Backend local invoke example:
 
 ```bash
