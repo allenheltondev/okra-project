@@ -1,5 +1,5 @@
 import type { APIGatewayProxyStructuredResultV2 } from 'aws-lambda';
-import { handler } from '../src/handlers/health';
+import { handler } from '../src/handlers/health.mjs';
 
 describe('health handler', () => {
   it('returns 200 and ok payload', async () => {

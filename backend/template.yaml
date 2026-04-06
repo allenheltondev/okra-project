@@ -24,28 +24,32 @@ Globals:
         NODE_OPTIONS: --enable-source-maps
         SHARED_USER_POOL_ID: !Ref SharedUserPoolId
         SHARED_USER_POOL_CLIENT_ID: !Ref SharedUserPoolClientId
+  Api:
+    Cors:
+      AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+      AllowHeaders: "'Content-Type,Authorization,Idempotency-Key,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
 
 Metadata:
   esbuild-properties: &esbuild-properties
+    Format: esm
     Minify: true
-    Target: es2022
-    Sourcemap: true
+    OutExtension:
+      - .js=.mjs
+    Target: es2020
+    Sourcemap: false
+    EntryPoints:
+      - index.mjs
+    Banner:
+      - js=import { createRequire } from 'module'; const require = createRequire(import.meta.url);
+    External:
+      - '@aws-sdk/*'
 
 Resources:
   ApiGateway:
-    Type: AWS::Serverless::HttpApi
+    Type: AWS::Serverless::Api
     Properties:
-      CorsConfiguration:
-        AllowHeaders:
-          - content-type
-          - authorization
-        AllowMethods:
-          - GET
-          - POST
-          - PUT
-          - OPTIONS
-        AllowOrigins:
-          - '*'
+      TracingEnabled: true
+      StageName: api
 
   FrontendBucket:
     Type: AWS::S3::Bucket
@@ -142,6 +146,12 @@ Resources:
 
   HealthFunction:
     Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        <<: *esbuild-properties
+        EntryPoints:
+          - src/handlers/health.mjs
     Properties:
       CodeUri: ./
       Handler: src/handlers/health.handler
@@ -152,12 +162,6 @@ Resources:
             ApiId: !Ref ApiGateway
             Path: /health
             Method: GET
-    Metadata:
-      BuildMethod: esbuild
-      BuildProperties:
-        <<: *esbuild-properties
-        EntryPoints:
-          - src/handlers/health.ts
 
 Outputs:
   HttpApiUrl:
