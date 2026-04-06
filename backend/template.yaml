@@ -16,14 +16,20 @@ Globals:
   Function:
     Runtime: nodejs24.x
     Timeout: 10
-    MemorySize: 256
+    MemorySize: 1024
     Architectures:
-      - x86_64
+      - arm64
     Environment:
       Variables:
         NODE_OPTIONS: --enable-source-maps
         SHARED_USER_POOL_ID: !Ref SharedUserPoolId
         SHARED_USER_POOL_CLIENT_ID: !Ref SharedUserPoolClientId
+
+Metadata:
+  esbuild-properties: &esbuild-properties
+    Minify: true
+    Target: es2022
+    Sourcemap: true
 
 Resources:
   ApiGateway:
@@ -137,7 +143,6 @@ Resources:
   HealthFunction:
     Type: AWS::Serverless::Function
     Properties:
-      FunctionName: okra-project-health
       CodeUri: ./
       Handler: src/handlers/health.handler
       Events:
@@ -150,9 +155,7 @@ Resources:
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
-        Minify: true
-        Target: es2022
-        Sourcemap: true
+        <<: *esbuild-properties
         EntryPoints:
           - src/handlers/health.ts
 
