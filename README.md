@@ -74,9 +74,9 @@ npm run db:migrate
 npm run db:seed
 ```
 
-In GitHub Actions, use `DATABASE_URL_STAGE` for stage migrations. The `backend-ci.yml` job now runs `npm run --workspace okra-backend db:migrate` on `master` with that secret.
+In GitHub Actions, use `DATABASE_URL_STAGING` for staging migrations. The `backend-ci.yml` job runs `npm run --workspace okra-backend db:migrate` on `main` with that secret.
 
-If you need production migrations, set `DATABASE_URL` or use a separate workflow with `DATABASE_URL_PROD`.
+Production deploy workflow also runs migrations using `DATABASE_URL_PROD` before `sam deploy`.
 
 Backend local invoke example:
 
@@ -97,8 +97,8 @@ For GitHub deploy workflows, add repository secrets:
 
 - `AWS_DEPLOY_ROLE_STAGE` (PR preview/staging deploys)
 - `AWS_DEPLOY_ROLE` (main production deploys)
-- `DATABASE_URL_STAGE` (stage/neon database connection string for stage deploys)
-- `DATABASE_URL_PROD` (production database connection string for prod deploys)
+- `DATABASE_URL_STAGING` (staging/preview Neon database connection string)
+- `DATABASE_URL_PROD` (production Neon database connection string)
 
 Branch/environment behavior:
 

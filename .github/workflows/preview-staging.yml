@@ -59,9 +59,9 @@ jobs:
       - name: Test backend
         run: npm run --workspace okra-backend test
 
-      - name: Run stage migrations
+      - name: Run staging migrations
         env:
-          DATABASE_URL: ${{ secrets.DATABASE_URL_STAGE }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL_STAGING }}
         run: npm run --workspace okra-backend db:migrate
 
       - name: Install esbuild globally for SAM
@@ -70,11 +70,11 @@ jobs:
       - name: Render samconfig from template
         working-directory: backend
         env:
-          DATABASE_URL_STAGE: ${{ secrets.DATABASE_URL_STAGE }}
+          DATABASE_URL_STAGING: ${{ secrets.DATABASE_URL_STAGING }}
         run: |
-          export DATABASE_URL_STAGE="${DATABASE_URL_STAGE}"
+          ESCAPED_DATABASE_URL=$(printf '%s' "$DATABASE_URL_STAGING" | sed 's/[&|]/\\&/g')
           export STACK_NAME_PREVIEW="$STACK_NAME"
-          sed "s|__DATABASE_URL__|${DATABASE_URL_STAGE}|g; s|__STACK_NAME_PREVIEW__|${STACK_NAME_PREVIEW}|g" samconfig.template.toml > samconfig.generated.toml
+          sed "s|__DATABASE_URL__|${ESCAPED_DATABASE_URL}|g; s|__STACK_NAME_PREVIEW__|${STACK_NAME_PREVIEW}|g" samconfig.template.toml > samconfig.generated.toml
 
       - name: Build and deploy preview infra
         working-directory: backend

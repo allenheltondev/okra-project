@@ -68,8 +68,13 @@ jobs:
         env:
           DATABASE_URL_PROD: ${{ secrets.DATABASE_URL_PROD }}
         run: |
-          export DATABASE_URL_PROD="${DATABASE_URL_PROD}"
-          sed "s|__DATABASE_URL__|${DATABASE_URL_PROD}|g" samconfig.template.toml > samconfig.generated.toml
+          ESCAPED_DATABASE_URL=$(printf '%s' "$DATABASE_URL_PROD" | sed 's/[&|]/\\&/g')
+          sed "s|__DATABASE_URL__|${ESCAPED_DATABASE_URL}|g" samconfig.template.toml > samconfig.generated.toml
+
+      - name: Run production migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_PROD }}
+        run: npm run --workspace okra-backend db:migrate
 
       - name: Deploy SAM stack (prod)
         working-directory: backend
