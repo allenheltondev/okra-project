@@ -14,6 +14,7 @@ coverage/
 
 # SAM / AWS
 .aws-sam/
+samconfig.toml
 
 # IDE
 .vscode/

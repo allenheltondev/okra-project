@@ -34,6 +34,15 @@ jobs:
           node-version: '24'
           cache: npm
 
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint backend
+        run: npm run --workspace okra-backend lint
+
+      - name: Run backend tests
+        run: npm run --workspace okra-backend test
+
       - name: Setup SAM CLI
         uses: aws-actions/setup-sam@v2
 
@@ -50,9 +59,6 @@ jobs:
           key: ${{ runner.os }}-sam-${{ hashFiles('backend/template.yaml', 'backend/src/**', 'backend/package-lock.json') }}
           restore-keys: |
             ${{ runner.os }}-sam-
-
-      - name: Install dependencies
-        run: npm ci
 
       - name: Install esbuild globally for SAM
         run: npm install -g esbuild

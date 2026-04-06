@@ -53,6 +53,12 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Lint backend
+        run: npm run --workspace okra-backend lint
+
+      - name: Test backend
+        run: npm run --workspace okra-backend test
+
       - name: Install esbuild globally for SAM
         run: npm install -g esbuild
 

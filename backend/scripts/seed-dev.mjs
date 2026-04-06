@@ -1,7 +1,7 @@
 import { createDbClient } from './db-client.mjs';
 
 async function seed() {
-  const client = await createDbClient({ admin: false });
+  const client = await createDbClient();
   await client.connect();
 
   try {

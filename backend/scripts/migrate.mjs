@@ -25,7 +25,7 @@ async function listMigrationFiles() {
 }
 
 async function applyMigrations() {
-  const client = await createDbClient({ admin: true });
+  const client = await createDbClient();
   await client.connect();
 
   try {
