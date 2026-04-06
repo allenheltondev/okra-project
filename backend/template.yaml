@@ -29,23 +29,11 @@ Globals:
         SHARED_USER_POOL_ID: !Ref SharedUserPoolId
         SHARED_USER_POOL_CLIENT_ID: !Ref SharedUserPoolClientId
         DSQL_HOSTNAME: !Ref DsqlHostname
-  HttpApi:
-    CorsConfiguration:
-      AllowMethods:
-        - GET
-        - POST
-        - PUT
-        - DELETE
-        - OPTIONS
-      AllowHeaders:
-        - Content-Type
-        - Authorization
-        - Idempotency-Key
-        - X-Amz-Date
-        - X-Api-Key
-        - X-Amz-Security-Token
-      AllowOrigins:
-        - '*'
+  Api:
+    Cors:
+      AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+      AllowHeaders: "'Content-Type,Authorization,Idempotency-Key,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+      AllowOrigin: "'*'"
 
 Metadata:
   esbuild-properties: &esbuild-properties
@@ -64,10 +52,10 @@ Metadata:
 
 Resources:
   ApiGateway:
-    Type: AWS::Serverless::HttpApi
+    Type: AWS::Serverless::Api
     Properties:
+      TracingEnabled: true
       StageName: api
-      DefinitionUri: openapi.yaml
 
   FrontendBucket:
     Type: AWS::S3::Bucket
@@ -225,15 +213,15 @@ Resources:
       Handler: src/handlers/api.handler
       Events:
         ApiProxy:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref ApiGateway
+            RestApiId: !Ref ApiGateway
             Path: /{proxy+}
             Method: ANY
         ApiRoot:
-          Type: HttpApi
+          Type: Api
           Properties:
-            ApiId: !Ref ApiGateway
+            RestApiId: !Ref ApiGateway
             Path: /
             Method: ANY
 

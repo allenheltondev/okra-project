@@ -1,37 +1,33 @@
 import { handler } from '../src/handlers/api.mjs';
 
-function makeHttpApiEvent(path, method = 'GET') {
+function makeRestApiEvent(path, method = 'GET') {
   return {
-    version: '2.0',
-    routeKey: '$default',
-    rawPath: path,
-    rawQueryString: '',
+    resource: '/{proxy+}',
+    path,
+    httpMethod: method,
     headers: {},
+    multiValueHeaders: {},
+    queryStringParameters: null,
+    multiValueQueryStringParameters: null,
+    pathParameters: null,
+    stageVariables: null,
     requestContext: {
-      accountId: '123456789012',
-      apiId: 'api-id',
-      domainName: 'example.execute-api.us-east-1.amazonaws.com',
-      domainPrefix: 'example',
-      http: {
-        method,
-        path,
-        protocol: 'HTTP/1.1',
+      requestId: 'health-req',
+      path,
+      stage: 'api',
+      identity: {
         sourceIp: '127.0.0.1',
         userAgent: 'vitest'
-      },
-      requestId: 'health-req',
-      routeKey: '$default',
-      stage: '$default',
-      time: '01/Jan/2026:00:00:00 +0000',
-      timeEpoch: 0
+      }
     },
+    body: null,
     isBase64Encoded: false
   };
 }
 
 describe('health endpoint', () => {
   it('returns 200 and ok payload', async () => {
-    const res = await handler(makeHttpApiEvent('/health'));
+    const res = await handler(makeRestApiEvent('/health'));
 
     expect(res.statusCode).toBe(200);
 
