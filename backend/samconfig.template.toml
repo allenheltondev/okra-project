@@ -1,9 +1,9 @@
 version = 0.1
 
 [stage.deploy.parameters]
-stack_name = "okra-project-stage"
+stack_name = "__STACK_NAME_STAGE__"
 resolve_s3 = true
-s3_prefix = "okra-project-stage"
+s3_prefix = "__STACK_NAME_STAGE__"
 region = "us-east-1"
 confirm_changeset = false
 capabilities = "CAPABILITY_IAM"
