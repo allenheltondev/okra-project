@@ -25,9 +25,14 @@ function makeRestApiEvent(path, method = 'GET') {
   };
 }
 
+const lambdaContext = {
+  awsRequestId: 'health-request-id',
+  getRemainingTimeInMillis: () => 30_000
+};
+
 describe('health endpoint', () => {
   it('returns 200 and ok payload', async () => {
-    const res = await handler(makeRestApiEvent('/health'));
+    const res = await handler(makeRestApiEvent('/health'), lambdaContext);
 
     expect(res.statusCode).toBe(200);
 

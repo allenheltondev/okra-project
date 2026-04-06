@@ -27,10 +27,16 @@ function makeRestApiEvent(path, method = 'POST', body = null) {
   };
 }
 
+const lambdaContext = {
+  awsRequestId: 'submit-request-id',
+  getRemainingTimeInMillis: () => 30_000
+};
+
 describe('submit endpoint validation', () => {
   it('returns 422 when required fields are missing', async () => {
     const res = await handler(
-      makeRestApiEvent('/submissions', 'POST', JSON.stringify({ contributorName: 'A' }))
+      makeRestApiEvent('/submissions', 'POST', JSON.stringify({ contributorName: 'A' })),
+      lambdaContext
     );
 
     expect(res.statusCode).toBe(422);

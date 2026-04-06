@@ -59,6 +59,10 @@ function assertCheck(condition, message) {
   console.log(`  ${symbol.pass} ${message}`);
 }
 
+function section(name) {
+  console.log(`\n${color.yellow}=== ${name} ===${color.reset}`);
+}
+
 async function testHealth() {
   const res = await request('/health');
   assertCheck(res.status === 200, `GET /health returns 200 (got ${res.status})`);
@@ -130,9 +134,14 @@ async function testSubmissionCreateAndIdempotency() {
 async function run() {
   console.log(`${color.yellow}Running integration tests against ${baseUrl}${color.reset}`);
 
+  section('System endpoints');
   await testHealth();
   await testVersion();
+
+  section('Submission validation');
   await testSubmissionValidation();
+
+  section('Submission idempotency');
   await testSubmissionCreateAndIdempotency();
 
   console.log(`${color.green}All integration tests passed.${color.reset}`);

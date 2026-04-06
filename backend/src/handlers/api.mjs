@@ -1,6 +1,7 @@
 import { Router } from '@aws-lambda-powertools/event-handler/http';
 import { IdempotencyConfig, makeIdempotent } from '@aws-lambda-powertools/idempotency';
 import { DynamoDBPersistenceLayer } from '@aws-lambda-powertools/idempotency/dynamodb';
+import { Logger } from '@aws-lambda-powertools/logger';
 import { validate } from '@aws-lambda-powertools/validation';
 import { SchemaValidationError } from '@aws-lambda-powertools/validation/errors';
 import { getDbPool } from '../lib/db-client.mjs';
@@ -10,10 +11,20 @@ import {
   createSubmissionResponseSchema
 } from '../schemas/submissions.mjs';
 
-const app = new Router();
+const logger = new Logger({
+  serviceName: process.env.POWERTOOLS_SERVICE_NAME ?? 'okra-project-api'
+});
+
+const app = new Router({ logger });
 
 const persistenceStore = new DynamoDBPersistenceLayer({
   tableName: process.env.IDEMPOTENCY_TABLE_NAME
+});
+
+const idempotencyConfig = new IdempotencyConfig({
+  eventKeyJmesPath: 'idempotencyKey',
+  throwOnNoIdempotencyKey: false,
+  expiresAfterSeconds: 60 * 60 * 24
 });
 
 const idempotentCreateSubmission = makeIdempotent(
@@ -29,11 +40,7 @@ const idempotentCreateSubmission = makeIdempotent(
   },
   {
     persistenceStore,
-    config: new IdempotencyConfig({
-      eventKeyJmesPath: 'idempotencyKey',
-      throwOnNoIdempotencyKey: false,
-      expiresAfterSeconds: 60 * 60 * 24
-    })
+    config: idempotencyConfig
   }
 );
 
@@ -54,6 +61,8 @@ app.get('/version', () => {
 
 app.post('/submissions', async ({ req }) => {
   try {
+    logger.info('Handling POST /submissions');
+
     const payload = validate({
       payload: await req.json(),
       schema: createSubmissionRequestSchema
@@ -77,6 +86,10 @@ app.post('/submissions', async ({ req }) => {
     };
   } catch (error) {
     if (error instanceof SchemaValidationError) {
+      logger.warn('Submission validation failed', {
+        issues: error.cause?.issues ?? []
+      });
+
       return {
         statusCode: 422,
         body: {
@@ -88,6 +101,10 @@ app.post('/submissions', async ({ req }) => {
         }
       };
     }
+
+    logger.error('Submission handler failed', {
+      error: error instanceof Error ? error.message : String(error)
+    });
 
     throw error;
   }
@@ -111,5 +128,27 @@ app.notFound(() => {
 });
 
 export const handler = async (event, context) => {
-  return app.resolve(event, context);
+  logger.addContext(context);
+  idempotencyConfig.registerLambdaContext(context);
+
+  const method = event?.httpMethod ?? event?.requestContext?.http?.method ?? 'UNKNOWN';
+  const path = event?.path ?? event?.rawPath ?? 'UNKNOWN';
+
+  logger.info('Incoming API request', {
+    method,
+    path,
+    requestId: context?.awsRequestId
+  });
+
+  try {
+    return await app.resolve(event, context);
+  } catch (error) {
+    logger.error('Unhandled API error', {
+      method,
+      path,
+      error: error instanceof Error ? error.message : String(error)
+    });
+
+    throw error;
+  }
 };

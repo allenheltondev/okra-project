@@ -25,9 +25,14 @@ function makeRestApiEvent(path, method = 'GET') {
   };
 }
 
+const lambdaContext = {
+  awsRequestId: 'test-request-id',
+  getRemainingTimeInMillis: () => 30_000
+};
+
 describe('api handler skeleton', () => {
   it('returns health payload for GET /health', async () => {
-    const res = await handler(makeRestApiEvent('/health'));
+    const res = await handler(makeRestApiEvent('/health'), lambdaContext);
 
     expect(res.statusCode).toBe(200);
 
@@ -37,7 +42,7 @@ describe('api handler skeleton', () => {
   });
 
   it('returns not-found payload for unknown route', async () => {
-    const res = await handler(makeRestApiEvent('/does-not-exist'));
+    const res = await handler(makeRestApiEvent('/does-not-exist'), lambdaContext);
 
     expect(res.statusCode).toBe(404);
   });

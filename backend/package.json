@@ -18,6 +18,7 @@
   "dependencies": {
     "@aws-lambda-powertools/event-handler": "^2.32.0",
     "@aws-lambda-powertools/idempotency": "^2.32.0",
+    "@aws-lambda-powertools/logger": "^2.32.0",
     "@aws-lambda-powertools/validation": "^2.32.0",
     "@aws-sdk/client-cloudformation": "^3.1024.0",
     "@aws-sdk/client-dynamodb": "^3.1024.0",
