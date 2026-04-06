@@ -16,6 +16,27 @@ async function ensureMigrationsTable(client) {
   `);
 }
 
+async function resolveMigrationIdColumn(client) {
+  const { rows } = await client.query(
+    `
+      select column_name
+      from information_schema.columns
+      where table_schema = 'public'
+        and table_name = 'schema_migrations'
+        and column_name in ('id', 'filename')
+      order by case when column_name = 'id' then 0 else 1 end
+      limit 1
+    `
+  );
+
+  const column = rows[0]?.column_name;
+  if (!column) {
+    throw new Error('schema_migrations exists but has neither id nor filename column');
+  }
+
+  return column;
+}
+
 async function listMigrationFiles() {
   const entries = await readdir(migrationsDir, { withFileTypes: true });
   return entries
@@ -30,9 +51,10 @@ async function applyMigrations() {
 
   try {
     await ensureMigrationsTable(client);
+    const migrationIdColumn = await resolveMigrationIdColumn(client);
 
-    const { rows } = await client.query('select id from schema_migrations');
-    const applied = new Set(rows.map((row) => row.id));
+    const { rows } = await client.query(`select ${migrationIdColumn} as migration_id from schema_migrations`);
+    const applied = new Set(rows.map((row) => row.migration_id));
 
     const files = await listMigrationFiles();
 
@@ -49,7 +71,7 @@ async function applyMigrations() {
       await client.query('begin');
       try {
         await client.query(sql);
-        await client.query('insert into schema_migrations(id) values ($1)', [file]);
+        await client.query(`insert into schema_migrations(${migrationIdColumn}) values ($1)`, [file]);
         await client.query('commit');
       } catch (error) {
         await client.query('rollback');
