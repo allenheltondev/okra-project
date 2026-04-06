@@ -4,6 +4,11 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
 const VALID_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
+const PHOTO_RATE_LIMIT_WINDOW_SECONDS = Number(
+  process.env.PHOTO_RATE_LIMIT_WINDOW_SECONDS ?? 60 * 60
+);
+const PHOTO_RATE_LIMIT_MAX_REQUESTS = Number(process.env.PHOTO_RATE_LIMIT_MAX_REQUESTS ?? 20);
+
 function getMediaBucketName() {
   const bucket = process.env.MEDIA_BUCKET_NAME;
   if (!bucket) {
@@ -45,7 +50,29 @@ export function isUuid(value) {
   );
 }
 
-export async function createPhotoUploadIntent(client, payload) {
+export async function enforcePhotoRateLimit(client, sourceIp) {
+  const ip = sourceIp || 'unknown';
+
+  const result = await client.query(
+    `
+      select count(*)::int as request_count
+      from submission_photos
+      where created_by_ip = $1
+        and created_at >= now() - ($2::int * interval '1 second')
+    `,
+    [ip, PHOTO_RATE_LIMIT_WINDOW_SECONDS]
+  );
+
+  const requestCount = result.rows[0]?.request_count ?? 0;
+  if (requestCount >= PHOTO_RATE_LIMIT_MAX_REQUESTS) {
+    const error = new Error('Too many photo upload intent requests. Please wait and try again.');
+    error.code = 'PHOTO_RATE_LIMITED';
+    error.retryAfterSeconds = PHOTO_RATE_LIMIT_WINDOW_SECONDS;
+    throw error;
+  }
+}
+
+export async function createPhotoUploadIntent(client, payload, sourceIp) {
   const mediaBucket = getMediaBucketName();
   const photoId = randomUUID();
   const objectKey = `temp-photos/${photoId}/original`;
@@ -59,10 +86,11 @@ export async function createPhotoUploadIntent(client, payload) {
         original_s3_key,
         mime_type,
         status,
-        expires_at
-      ) values ($1, null, $2, $3, $4, 'uploaded', now() + interval '1 hour')
+        expires_at,
+        created_by_ip
+      ) values ($1, null, $2, $3, $4, 'uploaded', now() + interval '1 hour', $5)
     `,
-    [photoId, mediaBucket, objectKey, payload.contentType]
+    [photoId, mediaBucket, objectKey, payload.contentType, sourceIp ?? 'unknown']
   );
 
   const s3 = new S3Client({ region: getAwsRegion() });

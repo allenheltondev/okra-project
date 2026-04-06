@@ -1,6 +1,10 @@
 import { Router } from '@aws-lambda-powertools/event-handler/http';
 import { createDbClient } from '../../scripts/db-client.mjs';
-import { createPhotoUploadIntent, validatePhotoCreatePayload } from '../services/photos.mjs';
+import {
+  createPhotoUploadIntent,
+  enforcePhotoRateLimit,
+  validatePhotoCreatePayload
+} from '../services/photos.mjs';
 import { insertPendingSubmissionWithPhotos, validateSubmissionPayload } from '../services/submissions.mjs';
 
 const app = new Router();
@@ -38,7 +42,7 @@ app.get('/version', () => {
   };
 });
 
-app.post('/photos', async ({ req }) => {
+app.post('/photos', async ({ req, event }) => {
   const payload = await req.json();
   const validation = validatePhotoCreatePayload(payload);
 
@@ -55,15 +59,32 @@ app.post('/photos', async ({ req }) => {
     };
   }
 
+  const sourceIp = event?.requestContext?.identity?.sourceIp ?? 'unknown';
+
   const client = await createDbClient();
   await client.connect();
 
   try {
-    const intent = await createPhotoUploadIntent(client, payload);
+    await enforcePhotoRateLimit(client, sourceIp);
+
+    const intent = await createPhotoUploadIntent(client, payload, sourceIp);
     return {
       statusCode: 201,
       body: intent
     };
+  } catch (error) {
+    if (error?.code === 'PHOTO_RATE_LIMITED') {
+      return {
+        statusCode: 429,
+        body: {
+          error: 'RateLimitExceeded',
+          message: error.message,
+          retryAfterSeconds: error.retryAfterSeconds
+        }
+      };
+    }
+
+    throw error;
   } finally {
     await client.end();
   }
