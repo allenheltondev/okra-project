@@ -1,0 +1,126 @@
+name: preview-staging
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, closed]
+    paths:
+      - 'frontend/**'
+      - 'backend/**'
+      - '.github/workflows/preview-staging.yml'
+
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+
+env:
+  AWS_REGION: us-east-1
+
+jobs:
+  deploy-preview:
+    if: github.event.action != 'closed'
+    runs-on: ubuntu-latest
+    env:
+      STACK_NAME: okra-project-preview-pr-${{ github.event.pull_request.number }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Setup SAM CLI
+        uses: aws-actions/setup-sam@v2
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Cache SAM build artifacts
+        uses: actions/cache@v4
+        with:
+          path: backend/.aws-sam/cache
+          key: ${{ runner.os }}-sam-preview-${{ hashFiles('backend/template.yaml', 'backend/src/**', 'backend/package-lock.json') }}
+          restore-keys: |
+            ${{ runner.os }}-sam-preview-
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build and deploy preview infra
+        working-directory: backend
+        run: |
+          sam build --template-file template.yaml --cached --parallel
+          sam deploy \
+            --stack-name "$STACK_NAME" \
+            --resolve-s3 \
+            --s3-prefix "$STACK_NAME" \
+            --region "$AWS_REGION" \
+            --capabilities CAPABILITY_IAM \
+            --no-confirm-changeset \
+            --no-fail-on-empty-changeset
+
+      - name: Build frontend
+        run: npm run --workspace okra-frontend build
+
+      - name: Resolve preview outputs
+        id: stack
+        run: |
+          FRONTEND_BUCKET=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --query "Stacks[0].Outputs[?OutputKey=='FrontendBucketName'].OutputValue" \
+            --output text)
+          DISTRIBUTION_ID=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --query "Stacks[0].Outputs[?OutputKey=='FrontendDistributionId'].OutputValue" \
+            --output text)
+          DISTRIBUTION_DOMAIN=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --query "Stacks[0].Outputs[?OutputKey=='FrontendDistributionDomainName'].OutputValue" \
+            --output text)
+
+          echo "frontend_bucket=$FRONTEND_BUCKET" >> "$GITHUB_OUTPUT"
+          echo "distribution_id=$DISTRIBUTION_ID" >> "$GITHUB_OUTPUT"
+          echo "distribution_domain=$DISTRIBUTION_DOMAIN" >> "$GITHUB_OUTPUT"
+
+      - name: Upload frontend assets
+        run: aws s3 sync frontend/dist "s3://${{ steps.stack.outputs.frontend_bucket }}" --delete
+
+      - name: Invalidate preview cache
+        run: aws cloudfront create-invalidation --distribution-id "${{ steps.stack.outputs.distribution_id }}" --paths "/*"
+
+      - name: Comment preview URL
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const url = `https://${{ steps.stack.outputs.distribution_domain }}`;
+            const body = `🧪 Preview environment is ready for this PR:\n\n${url}`;
+            github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.payload.pull_request.number,
+              body
+            });
+
+  destroy-preview:
+    if: github.event.action == 'closed'
+    runs-on: ubuntu-latest
+    env:
+      STACK_NAME: okra-project-preview-pr-${{ github.event.pull_request.number }}
+
+    steps:
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Delete preview stack
+        run: |
+          aws cloudformation delete-stack --stack-name "$STACK_NAME" || true

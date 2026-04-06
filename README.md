@@ -75,11 +75,16 @@ cd backend
 sam deploy --guided
 ```
 
-For GitHub frontend deploy workflow, add repository secret:
+For GitHub deploy workflows, add repository secret:
 
 - `AWS_DEPLOY_ROLE_ARN`
 
-The workflow hard-codes `ENV_NAME=dev`, `AWS_REGION=us-east-1`, and `STACK_NAME=okra-project-dev`.
+Branch/environment behavior:
+
+- Pull requests -> isolated preview stack: `okra-project-preview-pr-<PR_NUMBER>` (auto-created and auto-deleted on PR close)
+- Push to `main`/`master` -> production stack: `okra-project-prod`
+
+Region is hard-coded as `us-east-1`.
 
 ## Runtime Baseline
 
