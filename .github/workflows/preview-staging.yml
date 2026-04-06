@@ -180,24 +180,9 @@ jobs:
             while true; do
               PAYLOAD=$(aws s3api list-object-versions --bucket "$bucket" --output json)
 
-              DELETE_JSON=$(python - <<'PY'
-import json,sys
-payload=json.loads(sys.stdin.read() or '{}')
-objects=[]
-for v in payload.get('Versions', []) or []:
-    objects.append({'Key': v['Key'], 'VersionId': v['VersionId']})
-for m in payload.get('DeleteMarkers', []) or []:
-    objects.append({'Key': m['Key'], 'VersionId': m['VersionId']})
-print(json.dumps({'Objects': objects, 'Quiet': True}))
-PY
-<<< "$PAYLOAD")
+              DELETE_JSON=$(PAYLOAD_JSON="$PAYLOAD" python -c "import json,os; p=json.loads(os.environ.get('PAYLOAD_JSON','{}')); objs=[{'Key':v['Key'],'VersionId':v['VersionId']} for v in (p.get('Versions') or [])] + [{'Key':m['Key'],'VersionId':m['VersionId']} for m in (p.get('DeleteMarkers') or [])]; print(json.dumps({'Objects': objs, 'Quiet': True}))")
 
-              COUNT=$(python - <<'PY'
-import json,sys
-data=json.loads(sys.stdin.read())
-print(len(data.get('Objects', [])))
-PY
-<<< "$DELETE_JSON")
+              COUNT=$(DELETE_JSON="$DELETE_JSON" python -c "import json,os; d=json.loads(os.environ.get('DELETE_JSON','{}')); print(len(d.get('Objects', [])))")
 
               if [ "$COUNT" -eq 0 ]; then
                 break
