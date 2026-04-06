@@ -1,8 +1,41 @@
 import { Router } from '@aws-lambda-powertools/event-handler/http';
+import { IdempotencyConfig, makeIdempotent } from '@aws-lambda-powertools/idempotency';
+import { DynamoDBPersistenceLayer } from '@aws-lambda-powertools/idempotency/dynamodb';
+import { validate } from '@aws-lambda-powertools/validation';
+import { SchemaValidationError } from '@aws-lambda-powertools/validation/errors';
 import { getDbPool } from '../lib/db-client.mjs';
-import { insertPendingSubmission, validateSubmissionPayload } from '../services/submissions.mjs';
+import { insertPendingSubmission } from '../services/submissions.mjs';
+import {
+  createSubmissionRequestSchema,
+  createSubmissionResponseSchema
+} from '../schemas/submissions.mjs';
 
 const app = new Router();
+
+const persistenceStore = new DynamoDBPersistenceLayer({
+  tableName: process.env.IDEMPOTENCY_TABLE_NAME
+});
+
+const idempotentCreateSubmission = makeIdempotent(
+  async ({ payload }) => {
+    const pool = await getDbPool();
+    const created = await insertPendingSubmission(pool, payload);
+
+    return {
+      submissionId: created.id,
+      status: created.status,
+      createdAt: created.created_at
+    };
+  },
+  {
+    persistenceStore,
+    config: new IdempotencyConfig({
+      eventKeyJmesPath: 'idempotencyKey',
+      throwOnNoIdempotencyKey: false,
+      expiresAfterSeconds: 60 * 60 * 24
+    })
+  }
+);
 
 app.get('/health', () => {
   return {
@@ -20,33 +53,44 @@ app.get('/version', () => {
 });
 
 app.post('/submissions', async ({ req }) => {
-  const payload = await req.json();
-  const validation = validateSubmissionPayload(payload);
+  try {
+    const payload = validate({
+      payload: await req.json(),
+      schema: createSubmissionRequestSchema
+    });
 
-  if (!validation.valid) {
+    const idempotencyKey = req.headers.get('idempotency-key') ?? req.headers.get('Idempotency-Key') ?? '';
+
+    const body = await idempotentCreateSubmission({
+      idempotencyKey,
+      payload
+    });
+
+    validate({
+      payload: body,
+      schema: createSubmissionResponseSchema
+    });
+
     return {
-      statusCode: 422,
-      body: {
-        error: 'RequestValidationError',
-        message: 'Validation failed for request',
-        details: {
-          issues: validation.issues
-        }
-      }
+      statusCode: 201,
+      body
     };
-  }
-
-  const pool = await getDbPool();
-  const created = await insertPendingSubmission(pool, payload);
-
-  return {
-    statusCode: 201,
-    body: {
-      submissionId: created.id,
-      status: created.status,
-      createdAt: created.created_at
+  } catch (error) {
+    if (error instanceof SchemaValidationError) {
+      return {
+        statusCode: 422,
+        body: {
+          error: 'RequestValidationError',
+          message: 'Validation failed for request',
+          details: {
+            issues: error.cause?.issues ?? []
+          }
+        }
+      };
     }
-  };
+
+    throw error;
+  }
 });
 
 app.notFound(() => {

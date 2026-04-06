@@ -1,27 +1,32 @@
-import { validateSubmissionPayload } from '../../src/services/submissions.mjs';
+import { validate } from '@aws-lambda-powertools/validation';
+import { SchemaValidationError } from '@aws-lambda-powertools/validation/errors';
+import { createSubmissionRequestSchema } from '../../src/schemas/submissions.mjs';
 
-describe('submission payload validation', () => {
+describe('submission request schema validation', () => {
   it('accepts valid payload', () => {
-    const result = validateSubmissionPayload({
-      rawLocationText: 'Austin, TX',
-      displayLat: 30.2672,
-      displayLng: -97.7431,
-      privacyMode: 'city'
+    const payload = validate({
+      payload: {
+        rawLocationText: 'Austin, TX',
+        displayLat: 30.2672,
+        displayLng: -97.7431,
+        privacyMode: 'city'
+      },
+      schema: createSubmissionRequestSchema
     });
 
-    expect(result.valid).toBe(true);
-    expect(result.issues).toHaveLength(0);
+    expect(payload.rawLocationText).toBe('Austin, TX');
   });
 
   it('rejects invalid coordinates', () => {
-    const result = validateSubmissionPayload({
-      rawLocationText: 'Austin, TX',
-      displayLat: 120,
-      displayLng: -500
-    });
-
-    expect(result.valid).toBe(false);
-    expect(result.issues).toContain('displayLat must be between -90 and 90');
-    expect(result.issues).toContain('displayLng must be between -180 and 180');
+    expect(() =>
+      validate({
+        payload: {
+          rawLocationText: 'Austin, TX',
+          displayLat: 120,
+          displayLng: -500
+        },
+        schema: createSubmissionRequestSchema
+      })
+    ).toThrow(SchemaValidationError);
   });
 });

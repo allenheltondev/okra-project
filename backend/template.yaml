@@ -29,6 +29,7 @@ Globals:
         SHARED_USER_POOL_ID: !Ref SharedUserPoolId
         SHARED_USER_POOL_CLIENT_ID: !Ref SharedUserPoolClientId
         DSQL_HOSTNAME: !Ref DsqlHostname
+        IDEMPOTENCY_TABLE_NAME: !Ref IdempotencyTable
   Api:
     Cors:
       AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
@@ -200,6 +201,20 @@ Resources:
               Bool:
                 aws:SecureTransport: false
 
+  IdempotencyTable:
+    Type: AWS::DynamoDB::Table
+    Properties:
+      BillingMode: PAY_PER_REQUEST
+      AttributeDefinitions:
+        - AttributeName: id
+          AttributeType: S
+      KeySchema:
+        - AttributeName: id
+          KeyType: HASH
+      TimeToLiveSpecification:
+        AttributeName: expiration
+        Enabled: true
+
   ApiFunction:
     Type: AWS::Serverless::Function
     Metadata:
@@ -211,6 +226,18 @@ Resources:
     Properties:
       CodeUri: ./
       Handler: src/handlers/api.handler
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - dynamodb:GetItem
+                - dynamodb:PutItem
+                - dynamodb:UpdateItem
+                - dynamodb:DeleteItem
+                - dynamodb:Query
+                - dynamodb:Scan
+              Resource: !GetAtt IdempotencyTable.Arn
       Events:
         ApiProxy:
           Type: Api
@@ -241,6 +268,9 @@ Outputs:
   MediaBucketName:
     Description: S3 bucket for uploaded/processed images
     Value: !Ref MediaBucket
+  IdempotencyTableName:
+    Description: DynamoDB table used by Powertools idempotency utility
+    Value: !Ref IdempotencyTable
   SharedUserPoolIdInUse:
     Description: Passed-through shared User Pool ID
     Value: !Ref SharedUserPoolId
