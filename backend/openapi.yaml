@@ -104,3 +104,55 @@ paths:
                     type: string
         '422':
           description: Validation error
+
+  /submissions/{submissionId}/photos/upload-intent:
+    post:
+      operationId: createPhotoUploadIntent
+      summary: Create pre-signed upload URL and photo row for a submission
+      tags:
+        - media
+      parameters:
+        - in: path
+          name: submissionId
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - contentType
+              properties:
+                contentType:
+                  type: string
+                  enum: [image/jpeg, image/png, image/webp]
+                fileName:
+                  type: string
+      responses:
+        '201':
+          description: Upload intent created
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  photoId:
+                    type: string
+                  uploadUrl:
+                    type: string
+                  method:
+                    type: string
+                    example: PUT
+                  headers:
+                    type: object
+                  s3Key:
+                    type: string
+                  expiresInSeconds:
+                    type: number
+        '404':
+          description: Submission not found
+        '422':
+          description: Validation error

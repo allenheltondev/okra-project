@@ -28,6 +28,7 @@ Globals:
         SHARED_USER_POOL_ID: !Ref SharedUserPoolId
         SHARED_USER_POOL_CLIENT_ID: !Ref SharedUserPoolClientId
         DATABASE_URL: !Ref DatabaseUrl
+        MEDIA_BUCKET_NAME: !Ref MediaBucket
   Api:
     Cors:
       AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
