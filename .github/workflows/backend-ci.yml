@@ -40,3 +40,9 @@ jobs:
 
       - name: Test backend
         run: npm run --workspace okra-backend test
+
+      - name: Run stage migrations
+        if: github.ref == 'refs/heads/master'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_STAGE }}
+        run: npm run --workspace okra-backend db:migrate

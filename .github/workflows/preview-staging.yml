@@ -59,18 +59,17 @@ jobs:
       - name: Render samconfig from template
         working-directory: backend
         env:
-          DSQL_HOSTNAME_BASE: ${{ secrets.DSQL_HOSTNAME_BASE }}
+          DATABASE_URL_STAGE: ${{ secrets.DATABASE_URL_STAGE }}
         run: |
-          export DSQL_HOSTNAME_STAGE="${DSQL_HOSTNAME_BASE}-stage"
-          export DSQL_HOSTNAME_PROD="${DSQL_HOSTNAME_BASE}-prod"
-          export STACK_NAME_STAGE="$STACK_NAME"
-          sed "s|__DSQL_HOSTNAME_STAGE__|${DSQL_HOSTNAME_STAGE}|g; s|__DSQL_HOSTNAME_PROD__|${DSQL_HOSTNAME_PROD}|g; s|__STACK_NAME_STAGE__|${STACK_NAME_STAGE}|g" samconfig.template.toml > samconfig.generated.toml
+          export DATABASE_URL_STAGE="${DATABASE_URL_STAGE}"
+          export STACK_NAME_PREVIEW="$STACK_NAME"
+          sed "s|__DATABASE_URL__|${DATABASE_URL_STAGE}|g; s|__STACK_NAME_PREVIEW__|${STACK_NAME_PREVIEW}|g" samconfig.template.toml > samconfig.generated.toml
 
       - name: Build and deploy preview infra
         working-directory: backend
         run: |
           sam build --template-file template.yaml --cached --parallel
-          sam deploy --config-file samconfig.generated.toml --config-env stage
+          sam deploy --config-file samconfig.generated.toml --config-env preview
 
       - name: Build frontend
         run: npm run --workspace okra-frontend build

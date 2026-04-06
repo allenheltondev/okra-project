@@ -1,13 +1,29 @@
 import { Router } from '@aws-lambda-powertools/event-handler/http';
+import { createDbClient } from '../../scripts/db-client.mjs';
 
 const app = new Router();
 
-app.get('/health', () => {
-  return {
-    ok: true,
-    service: 'okra-project-api',
-    runtime: process.version
-  };
+app.get('/health', async () => {
+  try {
+    const client = await createDbClient();
+    await client.connect();
+    await client.query('SELECT 1');
+    await client.end();
+    return {
+      ok: true,
+      service: 'okra-project-api',
+      runtime: process.version,
+      db: 'connected'
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      service: 'okra-project-api',
+      runtime: process.version,
+      db: 'error',
+      error: error.message
+    };
+  }
 });
 
 app.get('/version', () => {
