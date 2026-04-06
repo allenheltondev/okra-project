@@ -8,3 +8,5 @@ region = "us-east-1"
 confirm_changeset = false
 capabilities = "CAPABILITY_IAM"
 image_repositories = []
+# When ready to bind Good Roots shared Cognito values, uncomment and set:
+# parameter_overrides = "SharedUserPoolId=us-east-1_xxxxx SharedUserPoolClientId=yyyyy"
