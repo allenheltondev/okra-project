@@ -114,7 +114,8 @@ For GitHub deploy workflows, add repository secrets:
 
 - `AWS_DEPLOY_ROLE_STAGE` (PR preview/staging deploys)
 - `AWS_DEPLOY_ROLE` (main production deploys)
-- `DSQL_HOSTNAME_BASE` (base hostname prefix; workflows derive `-stage` and `-prod`)
+- `DSQL_HOSTNAME_STAGE` (full DSQL hostname for stage/preview, e.g. `xxxx.dsql.us-east-1.on.aws`)
+- `DSQL_HOSTNAME_PROD` (full DSQL hostname for prod, e.g. `yyyy.dsql.us-east-1.on.aws`)
 
 Branch/environment behavior:
 

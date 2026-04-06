@@ -60,10 +60,9 @@ jobs:
       - name: Render samconfig from template
         working-directory: backend
         env:
-          DSQL_HOSTNAME_BASE: ${{ secrets.DSQL_HOSTNAME_BASE }}
+          DSQL_HOSTNAME_STAGE: ${{ secrets.DSQL_HOSTNAME_STAGE }}
+          DSQL_HOSTNAME_PROD: ${{ secrets.DSQL_HOSTNAME_PROD }}
         run: |
-          export DSQL_HOSTNAME_STAGE="${DSQL_HOSTNAME_BASE}-stage"
-          export DSQL_HOSTNAME_PROD="${DSQL_HOSTNAME_BASE}-prod"
           export STACK_NAME_STAGE="okra-project-stage"
           sed "s|__DSQL_HOSTNAME_STAGE__|${DSQL_HOSTNAME_STAGE}|g; s|__DSQL_HOSTNAME_PROD__|${DSQL_HOSTNAME_PROD}|g; s|__STACK_NAME_STAGE__|${STACK_NAME_STAGE}|g" samconfig.template.toml > samconfig.generated.toml
 
