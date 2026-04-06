@@ -1,45 +1,39 @@
-import { getCorrelationId, internalError, json, notFound } from '../lib/http.mjs';
+import { Router } from '@aws-lambda-powertools/event-handler/http';
 
-function health(correlationId) {
-  return json(
-    200,
+const app = new Router();
+
+app.get('/health', () => {
+  return {
+    ok: true,
+    service: 'okra-project-api',
+    runtime: process.version
+  };
+});
+
+app.get('/version', () => {
+  return {
+    ok: true,
+    version: '0.1.0'
+  };
+});
+
+app.notFound(() => {
+  return new Response(
+    JSON.stringify({
+      error: {
+        code: 'NOT_FOUND',
+        message: 'Route not found'
+      }
+    }),
     {
-      ok: true,
-      service: 'okra-project-api',
-      runtime: process.version
-    },
-    correlationId
-  );
-}
-
-function version(correlationId) {
-  return json(
-    200,
-    {
-      ok: true,
-      version: '0.1.0'
-    },
-    correlationId
-  );
-}
-
-export const handler = async (event) => {
-  const correlationId = getCorrelationId(event);
-  const method = event?.requestContext?.http?.method ?? event?.httpMethod;
-  const rawPath = event?.rawPath ?? event?.path ?? '/';
-
-  try {
-    if (method === 'GET' && rawPath === '/health') {
-      return health(correlationId);
+      status: 404,
+      headers: {
+        'content-type': 'application/json'
+      }
     }
+  );
+});
 
-    if (method === 'GET' && rawPath === '/version') {
-      return version(correlationId);
-    }
-
-    return notFound(correlationId);
-  } catch (error) {
-    console.error('[api] unhandled error', { correlationId, error });
-    return internalError(correlationId);
-  }
+export const handler = async (event, context) => {
+  return app.resolve(event, context);
 };
