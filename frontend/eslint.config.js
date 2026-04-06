@@ -4,6 +4,9 @@ import tseslint from 'typescript-eslint';
 import reactHooks from 'eslint-plugin-react-hooks';
 
 export default [
+  {
+    ignores: ['dist/**']
+  },
   js.configs.recommended,
   ...tseslint.configs.recommended,
   {

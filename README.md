@@ -49,7 +49,6 @@ A simple, maintainable web app for Olivia's Garden Foundation to show where Clem
 
 - `frontend/` - Vite + React app (S3/CloudFront deploy target)
 - `backend/` - Lambda handlers + tests + linting + SAM template
-- `infra/` - deployment notes and environment config examples
 - `db/ddl.sql` - Aurora DSQL schema for MVP
 - `docs/issues.md` - dependency-ordered issue plan
 
@@ -68,6 +67,19 @@ cd backend
 sam build
 sam local invoke HealthFunction
 ```
+
+Deploy stack (creates API + frontend/media buckets + CloudFront):
+
+```bash
+cd backend
+sam deploy --guided
+```
+
+For GitHub frontend deploy workflow, add repository secrets:
+
+- `AWS_DEPLOY_ROLE_ARN`
+- `AWS_REGION`
+- `AWS_STACK_NAME`
 
 ## Runtime Baseline
 
