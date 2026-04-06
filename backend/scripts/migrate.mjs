@@ -7,34 +7,15 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const migrationsDir = path.resolve(__dirname, '../../db/migrations');
 
+const migrationTable = process.env.MIGRATIONS_TABLE ?? 'okra_schema_migrations';
+
 async function ensureMigrationsTable(client) {
   await client.query(`
-    create table if not exists schema_migrations (
+    create table if not exists ${migrationTable} (
       id text primary key,
       applied_at timestamptz not null default now()
     )
   `);
-}
-
-async function resolveMigrationIdColumn(client) {
-  const { rows } = await client.query(
-    `
-      select column_name
-      from information_schema.columns
-      where table_schema = 'public'
-        and table_name = 'schema_migrations'
-        and column_name in ('id', 'filename')
-      order by case when column_name = 'id' then 0 else 1 end
-      limit 1
-    `
-  );
-
-  const column = rows[0]?.column_name;
-  if (!column) {
-    throw new Error('schema_migrations exists but has neither id nor filename column');
-  }
-
-  return column;
 }
 
 async function listMigrationFiles() {
@@ -51,9 +32,8 @@ async function applyMigrations() {
 
   try {
     await ensureMigrationsTable(client);
-    const migrationIdColumn = await resolveMigrationIdColumn(client);
 
-    const { rows } = await client.query(`select ${migrationIdColumn} as migration_id from schema_migrations`);
+    const { rows } = await client.query(`select id as migration_id from ${migrationTable}`);
     const applied = new Set(rows.map((row) => row.migration_id));
 
     const files = await listMigrationFiles();
@@ -71,7 +51,7 @@ async function applyMigrations() {
       await client.query('begin');
       try {
         await client.query(sql);
-        await client.query(`insert into schema_migrations(${migrationIdColumn}) values ($1)`, [file]);
+        await client.query(`insert into ${migrationTable}(id) values ($1)`, [file]);
         await client.query('commit');
       } catch (error) {
         await client.query('rollback');
