@@ -9,6 +9,10 @@
 **Description:**
 - Add monorepo/simple workspace structure (`frontend`, `backend`, `infra`, `db`).
 - Pin Node.js 24 in tooling/docs.
+- Set backend structure to match Good Roots Network style:
+  - AWS SAM template
+  - esbuild bundling for Lambdas
+  - eslint + unit test baseline
 - Add formatter/linter/test scripts and baseline README updates.
 
 **Depends on:** none
@@ -96,9 +100,10 @@
 **Title:** `[Admin] Add Cognito-based admin auth guard`
 
 **Description:**
-- Cognito user pool for admin sign-in.
+- Reuse existing Good Roots Network Cognito User Pool when applicable.
 - API auth middleware for admin-only routes.
-- Seed/allowlist first admin account.
+- Seed/allowlist first admin account/group mapping.
+- Support importing pool/client IDs via SAM parameters or stack exports/SSM.
 
 **Depends on:** #4
 

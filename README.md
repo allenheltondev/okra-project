@@ -29,6 +29,22 @@ A simple, maintainable web app for Olivia's Garden Foundation to show where Clem
 - **Storage:** S3 for image originals + normalized derivatives
 - **Image Processing:** Lambda (Node.js 24 + sharp)
 
+## Engineering Baseline (match Good Roots Network style)
+
+- Use **AWS SAM** templates for backend/API/image-processor infrastructure.
+- Use **esbuild** for Lambda bundling.
+- Include **linting + unit tests** from day one.
+- Keep one-repo, one-person-operable workflows (minimal moving parts).
+- Prefer explicit env/config outputs over hidden/manual config.
+
+## Cognito Reuse Strategy
+
+- Reuse the **existing Good Roots Network Cognito User Pool** where applicable.
+- Infrastructure should support either:
+  - importing pool/client IDs as parameters, or
+  - reading them from stack exports/SSM parameters.
+- For MVP, admin access should work with shared user pool claims/groups.
+
 ## MVP Product Flows
 
 ### 1) Public Submit
@@ -74,3 +90,4 @@ See `docs/issues.md` for implementation order and dependencies.
 
 - Node.js: **24.x** for all Lambda functions and tooling.
 - Keep architecture boring and solo-maintainable.
+- Default backend toolchain: SAM + esbuild + eslint + unit tests.
