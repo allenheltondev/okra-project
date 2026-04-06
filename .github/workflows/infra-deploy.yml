@@ -34,6 +34,15 @@ jobs:
           node-version: '24'
           cache: npm
 
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Lint backend
+        run: npm run --workspace okra-backend lint
+
+      - name: Run backend tests
+        run: npm run --workspace okra-backend test
+
       - name: Setup SAM CLI
         uses: aws-actions/setup-sam@v2
 
@@ -51,21 +60,21 @@ jobs:
           restore-keys: |
             ${{ runner.os }}-sam-
 
-      - name: Install dependencies
-        run: npm ci
-
       - name: Install esbuild globally for SAM
         run: npm install -g esbuild
 
       - name: Render samconfig from template
         working-directory: backend
         env:
-          DSQL_HOSTNAME_BASE: ${{ secrets.DSQL_HOSTNAME_BASE }}
+          DATABASE_URL_PROD: ${{ secrets.DATABASE_URL_PROD }}
         run: |
-          export DSQL_HOSTNAME_STAGE="${DSQL_HOSTNAME_BASE}-stage"
-          export DSQL_HOSTNAME_PROD="${DSQL_HOSTNAME_BASE}-prod"
-          export STACK_NAME_STAGE="okra-project-stage"
-          sed "s|__DSQL_HOSTNAME_STAGE__|${DSQL_HOSTNAME_STAGE}|g; s|__DSQL_HOSTNAME_PROD__|${DSQL_HOSTNAME_PROD}|g; s|__STACK_NAME_STAGE__|${STACK_NAME_STAGE}|g" samconfig.template.toml > samconfig.generated.toml
+          ESCAPED_DATABASE_URL=$(printf '%s' "$DATABASE_URL_PROD" | sed 's/[&|]/\\&/g')
+          sed "s|__DATABASE_URL__|${ESCAPED_DATABASE_URL}|g" samconfig.template.toml > samconfig.generated.toml
+
+      - name: Run production migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_PROD }}
+        run: npm run --workspace okra-backend db:migrate
 
       - name: Deploy SAM stack (prod)
         working-directory: backend

@@ -21,7 +21,7 @@
 
 ## Issue 2 - Database schema + migration baseline
 
-**Title:** `[Data] Implement MVP Aurora DSQL schema from db/ddl.sql`
+**Title:** `[Data] Implement MVP PostgreSQL schema from db/ddl.sql`
 
 **Description:**
 - Apply schema for submissions, photos, admin users, edit tokens.

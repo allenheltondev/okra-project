@@ -1,4 +1,4 @@
--- Okra Project MVP schema (Aurora DSQL/Postgres-compatible)
+-- Okra Project MVP schema (PostgreSQL)
 -- Node.js 24 application stack
 
 create extension if not exists pgcrypto;

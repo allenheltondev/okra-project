@@ -53,24 +53,34 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Lint backend
+        run: npm run --workspace okra-backend lint
+
+      - name: Test backend
+        run: npm run --workspace okra-backend test
+
+      - name: Run staging migrations
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_STAGING }}
+        run: npm run --workspace okra-backend db:migrate
+
       - name: Install esbuild globally for SAM
         run: npm install -g esbuild
 
       - name: Render samconfig from template
         working-directory: backend
         env:
-          DSQL_HOSTNAME_BASE: ${{ secrets.DSQL_HOSTNAME_BASE }}
+          DATABASE_URL_STAGING: ${{ secrets.DATABASE_URL_STAGING }}
         run: |
-          export DSQL_HOSTNAME_STAGE="${DSQL_HOSTNAME_BASE}-stage"
-          export DSQL_HOSTNAME_PROD="${DSQL_HOSTNAME_BASE}-prod"
-          export STACK_NAME_STAGE="$STACK_NAME"
-          sed "s|__DSQL_HOSTNAME_STAGE__|${DSQL_HOSTNAME_STAGE}|g; s|__DSQL_HOSTNAME_PROD__|${DSQL_HOSTNAME_PROD}|g; s|__STACK_NAME_STAGE__|${STACK_NAME_STAGE}|g" samconfig.template.toml > samconfig.generated.toml
+          ESCAPED_DATABASE_URL=$(printf '%s' "$DATABASE_URL_STAGING" | sed 's/[&|]/\\&/g')
+          export STACK_NAME_PREVIEW="$STACK_NAME"
+          sed "s|__DATABASE_URL__|${ESCAPED_DATABASE_URL}|g; s|__STACK_NAME_PREVIEW__|${STACK_NAME_PREVIEW}|g" samconfig.template.toml > samconfig.generated.toml
 
       - name: Build and deploy preview infra
         working-directory: backend
         run: |
           sam build --template-file template.yaml --cached --parallel
-          sam deploy --config-file samconfig.generated.toml --config-env stage
+          sam deploy --config-file samconfig.generated.toml --config-env preview
 
       - name: Build frontend
         run: npm run --workspace okra-frontend build

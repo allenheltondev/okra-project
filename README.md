@@ -24,7 +24,7 @@ A simple, maintainable web app for Olivia's Garden Foundation to show where Clem
 - **Frontend:** Vite + React (static build)
 - **Hosting:** S3 + CloudFront
 - **API:** API Gateway HTTP API + Lambda (Node.js 24)
-- **Database:** Aurora DSQL
+- **Database:** PostgreSQL (Neon)
 - **Auth:** Cognito (optional for non-admin in later phase; admin-ready)
 - **Storage:** S3 for image originals + normalized derivatives
 - **Image Processing:** Lambda (Node.js 24 + sharp)
@@ -49,7 +49,7 @@ A simple, maintainable web app for Olivia's Garden Foundation to show where Clem
 
 - `frontend/` - Vite + React app (S3/CloudFront deploy target)
 - `backend/` - Lambda handlers + tests + linting + SAM template
-- `db/ddl.sql` - Aurora DSQL schema reference for MVP
+- `db/ddl.sql` - PostgreSQL schema reference for MVP
 - `db/migrations/` - ordered SQL migrations applied by backend migration runner
 - `docs/issues.md` - dependency-ordered issue plan
 
@@ -61,28 +61,22 @@ npm run lint
 npm run test
 ```
 
-### Database migration + seed (Aurora DSQL)
+### Database migration + seed (PostgreSQL / Neon)
 
-Migrations/seeding support three connection modes (in priority order):
+Migrations and seeding now use a standard PostgreSQL connection string.
 
-1. `DATABASE_URL` (fallback)
-2. `DSQL_HOSTNAME` + IAM token signer
-3. Auto-resolve hostname from CloudFormation output (`DsqlHostnameInUse`) using `AWS_STACK_NAME`/`STACK_NAME`
-
-Recommended (minimal manual wiring):
+Use these environment variables locally:
 
 ```bash
 cd backend
-set AWS_REGION=us-east-1
-set AWS_STACK_NAME=okra-project-dev
-set DSQL_DB_USER=admin
-set DSQL_DATABASE=postgres
+set DATABASE_URL="postgresql://user:password@host:5432/database?sslmode=require"
 npm run db:migrate
 npm run db:seed
 ```
 
-Migration script uses admin token auth (`getDbConnectAdminAuthToken`), seed uses standard token auth (`getDbConnectAuthToken`).
-Set `DsqlHostname` once in `backend/samconfig.toml` per environment so stack output resolution works automatically.
+In GitHub Actions, use `DATABASE_URL_STAGING` for staging migrations. The `backend-ci.yml` job runs `npm run --workspace okra-backend db:migrate` on `main` with that secret.
+
+Production deploy workflow also runs migrations using `DATABASE_URL_PROD` before `sam deploy`.
 
 Backend local invoke example:
 
@@ -103,7 +97,8 @@ For GitHub deploy workflows, add repository secrets:
 
 - `AWS_DEPLOY_ROLE_STAGE` (PR preview/staging deploys)
 - `AWS_DEPLOY_ROLE` (main production deploys)
-- `DSQL_HOSTNAME_BASE` (base hostname prefix; workflows derive `-stage` and `-prod`)
+- `DATABASE_URL_STAGING` (staging/preview Neon database connection string)
+- `DATABASE_URL_PROD` (production Neon database connection string)
 
 Branch/environment behavior:
 

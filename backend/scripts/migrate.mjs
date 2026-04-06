@@ -7,9 +7,11 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const migrationsDir = path.resolve(__dirname, '../../db/migrations');
 
+const migrationTable = process.env.MIGRATIONS_TABLE ?? 'okra_schema_migrations';
+
 async function ensureMigrationsTable(client) {
   await client.query(`
-    create table if not exists schema_migrations (
+    create table if not exists ${migrationTable} (
       id text primary key,
       applied_at timestamptz not null default now()
     )
@@ -25,14 +27,14 @@ async function listMigrationFiles() {
 }
 
 async function applyMigrations() {
-  const client = await createDbClient({ admin: true });
+  const client = await createDbClient();
   await client.connect();
 
   try {
     await ensureMigrationsTable(client);
 
-    const { rows } = await client.query('select id from schema_migrations');
-    const applied = new Set(rows.map((row) => row.id));
+    const { rows } = await client.query(`select id as migration_id from ${migrationTable}`);
+    const applied = new Set(rows.map((row) => row.migration_id));
 
     const files = await listMigrationFiles();
 
@@ -49,7 +51,7 @@ async function applyMigrations() {
       await client.query('begin');
       try {
         await client.query(sql);
-        await client.query('insert into schema_migrations(id) values ($1)', [file]);
+        await client.query(`insert into ${migrationTable}(id) values ($1)`, [file]);
         await client.query('commit');
       } catch (error) {
         await client.query('rollback');

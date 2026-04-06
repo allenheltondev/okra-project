@@ -10,7 +10,7 @@ on:
       - '.github/workflows/backend-ci.yml'
   push:
     branches:
-      - master
+      - main
     paths:
       - 'backend/**'
       - 'db/**'
@@ -40,3 +40,9 @@ jobs:
 
       - name: Test backend
         run: npm run --workspace okra-backend test
+
+      - name: Run staging migrations
+        if: github.ref == 'refs/heads/main'
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL_STAGING }}
+        run: npm run --workspace okra-backend db:migrate

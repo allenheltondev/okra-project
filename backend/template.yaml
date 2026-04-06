@@ -11,10 +11,9 @@ Parameters:
     Type: String
     Default: ''
     Description: Optional existing Cognito User Pool App Client ID
-  DsqlHostname:
+  DatabaseUrl:
     Type: String
-    Default: ''
-    Description: Aurora DSQL cluster endpoint hostname (for migrations/runtime DB clients)
+    Description: PostgreSQL connection string (e.g., from Neon)
 
 Globals:
   Function:
@@ -28,7 +27,7 @@ Globals:
         NODE_OPTIONS: --enable-source-maps
         SHARED_USER_POOL_ID: !Ref SharedUserPoolId
         SHARED_USER_POOL_CLIENT_ID: !Ref SharedUserPoolClientId
-        DSQL_HOSTNAME: !Ref DsqlHostname
+        DATABASE_URL: !Ref DatabaseUrl
   Api:
     Cors:
       AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
@@ -49,6 +48,7 @@ Metadata:
       - js=import { createRequire } from 'module'; const require = createRequire(import.meta.url);
     External:
       - '@aws-sdk/*'
+      - 'pg'
 
 Resources:
   ApiGateway:
@@ -247,6 +247,3 @@ Outputs:
   SharedUserPoolClientIdInUse:
     Description: Passed-through shared User Pool Client ID
     Value: !Ref SharedUserPoolClientId
-  DsqlHostnameInUse:
-    Description: Passed-through DSQL hostname used by app/scripts
-    Value: !Ref DsqlHostname
