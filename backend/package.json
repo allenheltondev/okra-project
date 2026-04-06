@@ -1,0 +1,28 @@
+{
+  "name": "okra-backend",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "build": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@aws-sdk/client-s3": "^3.750.0"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.20.0",
+    "@types/aws-lambda": "^8.10.147",
+    "@types/node": "^24.0.0",
+    "eslint": "^9.20.1",
+    "globals": "^15.14.0",
+    "typescript": "^5.7.3",
+    "typescript-eslint": "^8.24.0",
+    "vitest": "^3.0.5"
+  }
+}

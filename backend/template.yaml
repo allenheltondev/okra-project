@@ -1,0 +1,75 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Transform: AWS::Serverless-2016-10-31
+Description: Okra Project backend (Node.js 24, SAM + esbuild)
+
+Parameters:
+  SharedUserPoolId:
+    Type: String
+    Default: ''
+    Description: Optional existing Cognito User Pool ID (from Good Roots Network)
+  SharedUserPoolClientId:
+    Type: String
+    Default: ''
+    Description: Optional existing Cognito User Pool App Client ID
+
+Globals:
+  Function:
+    Runtime: nodejs24.x
+    Timeout: 10
+    MemorySize: 256
+    Architectures:
+      - x86_64
+    Environment:
+      Variables:
+        NODE_OPTIONS: --enable-source-maps
+        SHARED_USER_POOL_ID: !Ref SharedUserPoolId
+        SHARED_USER_POOL_CLIENT_ID: !Ref SharedUserPoolClientId
+
+Resources:
+  ApiGateway:
+    Type: AWS::Serverless::HttpApi
+    Properties:
+      CorsConfiguration:
+        AllowHeaders:
+          - content-type
+          - authorization
+        AllowMethods:
+          - GET
+          - POST
+          - PUT
+          - OPTIONS
+        AllowOrigins:
+          - '*'
+
+  HealthFunction:
+    Type: AWS::Serverless::Function
+    Properties:
+      FunctionName: okra-project-health
+      CodeUri: ./
+      Handler: src/handlers/health.handler
+      Events:
+        HealthRoute:
+          Type: HttpApi
+          Properties:
+            ApiId: !Ref ApiGateway
+            Path: /health
+            Method: GET
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        Minify: true
+        Target: es2022
+        Sourcemap: true
+        EntryPoints:
+          - src/handlers/health.ts
+
+Outputs:
+  HttpApiUrl:
+    Description: Base URL for the HTTP API
+    Value: !Sub 'https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com'
+  SharedUserPoolIdInUse:
+    Description: Passed-through shared User Pool ID
+    Value: !Ref SharedUserPoolId
+  SharedUserPoolClientIdInUse:
+    Description: Passed-through shared User Pool Client ID
+    Value: !Ref SharedUserPoolClientId

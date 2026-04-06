@@ -45,46 +45,29 @@ A simple, maintainable web app for Olivia's Garden Foundation to show where Clem
   - reading them from stack exports/SSM parameters.
 - For MVP, admin access should work with shared user pool claims/groups.
 
-## MVP Product Flows
-
-### 1) Public Submit
-
-1. User fills form with map location and optional details.
-2. App requests upload intent from API.
-3. App uploads image directly to S3 with pre-signed URL.
-4. Submission enters `pending_review`.
-5. Image processor normalizes/transcodes image.
-
-### 2) Admin Review
-
-1. Admin signs in.
-2. Views pending submissions.
-3. Approves or denies each submission.
-4. Optional: adjusts display pin before approval.
-
-### 3) Public Map
-
-- Show approved submissions on a world map.
-- Clicking a pin opens card/gallery with approved details.
-
-## Privacy Model (MVP)
-
-- Users choose display precision:
-  - `exact`
-  - `nearby`
-  - `neighborhood`
-  - `city`
-- Public map uses only display-safe coordinates.
-- Raw location text is private (admin/internal only).
-
 ## Repository Layout
 
+- `frontend/` - Vite + React app (S3/CloudFront deploy target)
+- `backend/` - Lambda handlers + tests + linting + SAM template
+- `infra/` - deployment notes and environment config examples
 - `db/ddl.sql` - Aurora DSQL schema for MVP
 - `docs/issues.md` - dependency-ordered issue plan
 
-## Issue Plan
+## Quick Start
 
-See `docs/issues.md` for implementation order and dependencies.
+```bash
+npm install
+npm run lint
+npm run test
+```
+
+Backend local invoke example:
+
+```bash
+cd backend
+sam build
+sam local invoke HealthFunction
+```
 
 ## Runtime Baseline
 

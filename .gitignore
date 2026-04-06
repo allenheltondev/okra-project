@@ -1,0 +1,24 @@
+# Node
+node_modules/
+npm-debug.log*
+
+# Build outputs
+dist/
+coverage/
+.tmp/
+
+# Env
+.env
+.env.*
+!.env.example
+
+# SAM / AWS
+.aws-sam/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
