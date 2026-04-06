@@ -62,7 +62,21 @@ jobs:
         env:
           DSQL_HOSTNAME_STAGE: ${{ secrets.DSQL_HOSTNAME_STAGE }}
           DSQL_HOSTNAME_PROD: ${{ secrets.DSQL_HOSTNAME_PROD }}
+          DSQL_HOSTNAME_BASE: ${{ secrets.DSQL_HOSTNAME_BASE }}
         run: |
+          if [ -z "${DSQL_HOSTNAME_STAGE}" ] && [ -n "${DSQL_HOSTNAME_BASE}" ]; then
+            DSQL_HOSTNAME_STAGE="${DSQL_HOSTNAME_BASE}-stage"
+          fi
+
+          if [ -z "${DSQL_HOSTNAME_PROD}" ] && [ -n "${DSQL_HOSTNAME_BASE}" ]; then
+            DSQL_HOSTNAME_PROD="${DSQL_HOSTNAME_BASE}-prod"
+          fi
+
+          if [ -z "${DSQL_HOSTNAME_STAGE}" ] || [ -z "${DSQL_HOSTNAME_PROD}" ]; then
+            echo "Missing DSQL hostname secrets. Set DSQL_HOSTNAME_STAGE/DSQL_HOSTNAME_PROD (or DSQL_HOSTNAME_BASE legacy fallback)."
+            exit 1
+          fi
+
           export STACK_NAME_STAGE="okra-project-stage"
           sed "s|__DSQL_HOSTNAME_STAGE__|${DSQL_HOSTNAME_STAGE}|g; s|__DSQL_HOSTNAME_PROD__|${DSQL_HOSTNAME_PROD}|g; s|__STACK_NAME_STAGE__|${STACK_NAME_STAGE}|g" samconfig.template.toml > samconfig.generated.toml
 
