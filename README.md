@@ -63,24 +63,26 @@ npm run test
 
 ### Database migration + seed (Aurora DSQL)
 
-Set either a raw `DATABASE_URL` **or** DSQL IAM token inputs.
+Migrations/seeding support three connection modes (in priority order):
+
+1. `DATABASE_URL` (fallback)
+2. `DSQL_HOSTNAME` + IAM token signer
+3. Auto-resolve hostname from CloudFormation output (`DsqlHostnameInUse`) using `AWS_STACK_NAME`/`STACK_NAME`
+
+Recommended (minimal manual wiring):
 
 ```bash
 cd backend
-
-# DSQL IAM mode (recommended)
-set DSQL_HOSTNAME=<cluster-endpoint>.dsql.us-east-1.on.aws
+set AWS_REGION=us-east-1
+set AWS_STACK_NAME=okra-project-dev
 set DSQL_DB_USER=admin
 set DSQL_DATABASE=postgres
-set AWS_REGION=us-east-1
 npm run db:migrate
 npm run db:seed
-
-# Optional fallback mode
-# set DATABASE_URL=postgres://...
 ```
 
 Migration script uses admin token auth (`getDbConnectAdminAuthToken`), seed uses standard token auth (`getDbConnectAuthToken`).
+Set `DsqlHostname` once in `backend/samconfig.toml` per environment so stack output resolution works automatically.
 
 Backend local invoke example:
 
@@ -101,6 +103,8 @@ For GitHub deploy workflows, add repository secrets:
 
 - `AWS_DEPLOY_ROLE_STAGE` (PR preview/staging deploys)
 - `AWS_DEPLOY_ROLE` (main production deploys)
+- `DSQL_HOSTNAME_STAGE` (Aurora DSQL endpoint hostname for preview/stage)
+- `DSQL_HOSTNAME_PROD` (Aurora DSQL endpoint hostname for production)
 
 Branch/environment behavior:
 

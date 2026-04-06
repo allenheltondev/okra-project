@@ -11,6 +11,10 @@ Parameters:
     Type: String
     Default: ''
     Description: Optional existing Cognito User Pool App Client ID
+  DsqlHostname:
+    Type: String
+    Default: ''
+    Description: Aurora DSQL cluster endpoint hostname (for migrations/runtime DB clients)
 
 Globals:
   Function:
@@ -24,6 +28,7 @@ Globals:
         NODE_OPTIONS: --enable-source-maps
         SHARED_USER_POOL_ID: !Ref SharedUserPoolId
         SHARED_USER_POOL_CLIENT_ID: !Ref SharedUserPoolClientId
+        DSQL_HOSTNAME: !Ref DsqlHostname
   Api:
     Cors:
       AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
@@ -185,3 +190,6 @@ Outputs:
   SharedUserPoolClientIdInUse:
     Description: Passed-through shared User Pool Client ID
     Value: !Ref SharedUserPoolClientId
+  DsqlHostnameInUse:
+    Description: Passed-through DSQL hostname used by app/scripts
+    Value: !Ref DsqlHostname

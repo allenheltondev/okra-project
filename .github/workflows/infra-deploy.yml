@@ -59,11 +59,14 @@ jobs:
 
       - name: Deploy SAM stack (prod)
         working-directory: backend
+        env:
+          DSQL_HOSTNAME_PROD: ${{ secrets.DSQL_HOSTNAME_PROD }}
         run: |
           sam build --template-file template.yaml --cached --parallel
           sam deploy \
             --config-env prod \
             --stack-name okra-project-prod \
+            --parameter-overrides "DsqlHostname=$DSQL_HOSTNAME_PROD" \
             --no-fail-on-empty-changeset
 
       - name: Print stack outputs

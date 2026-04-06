@@ -8,8 +8,7 @@ region = "us-east-1"
 confirm_changeset = false
 capabilities = "CAPABILITY_IAM"
 image_repositories = []
-# When ready to bind Good Roots shared Cognito values, uncomment and set:
-# parameter_overrides = "SharedUserPoolId=us-east-1_xxxxx SharedUserPoolClientId=yyyyy"
+# parameter_overrides can be supplied by CI or CLI when needed.
 
 [prod.deploy.parameters]
 stack_name = "okra-project-prod"
@@ -19,4 +18,4 @@ region = "us-east-1"
 confirm_changeset = false
 capabilities = "CAPABILITY_IAM"
 image_repositories = []
-# parameter_overrides = "SharedUserPoolId=us-east-1_xxxxx SharedUserPoolClientId=yyyyy"
+# parameter_overrides can be supplied by CI or CLI when needed.
