@@ -103,8 +103,7 @@ For GitHub deploy workflows, add repository secrets:
 
 - `AWS_DEPLOY_ROLE_STAGE` (PR preview/staging deploys)
 - `AWS_DEPLOY_ROLE` (main production deploys)
-- `DSQL_HOSTNAME_STAGE` (Aurora DSQL endpoint hostname for preview/stage)
-- `DSQL_HOSTNAME_PROD` (Aurora DSQL endpoint hostname for production)
+- `DSQL_HOSTNAME_BASE` (base hostname prefix; workflows derive `-stage` and `-prod`)
 
 Branch/environment behavior:
 
@@ -112,6 +111,8 @@ Branch/environment behavior:
 - Push to `main` -> production stack: `okra-project-prod`
 
 Region is hard-coded as `us-east-1`.
+
+Deploy workflows render `backend/samconfig.generated.toml` from `backend/samconfig.template.toml` and then run `sam deploy` with that generated config.
 
 ## Runtime Baseline
 

@@ -6,7 +6,7 @@ on:
       - main
     paths:
       - 'backend/template.yaml'
-      - 'backend/samconfig.toml'
+      - 'backend/samconfig.template.toml'
       - 'backend/src/**'
       - 'backend/package.json'
       - 'backend/package-lock.json'
@@ -57,17 +57,20 @@ jobs:
       - name: Install esbuild globally for SAM
         run: npm install -g esbuild
 
-      - name: Deploy SAM stack (prod)
+      - name: Render samconfig from template
         working-directory: backend
         env:
-          DSQL_HOSTNAME_PROD: ${{ secrets.DSQL_HOSTNAME_PROD }}
+          DSQL_HOSTNAME_BASE: ${{ secrets.DSQL_HOSTNAME_BASE }}
+        run: |
+          export DSQL_HOSTNAME_STAGE="${DSQL_HOSTNAME_BASE}-stage"
+          export DSQL_HOSTNAME_PROD="${DSQL_HOSTNAME_BASE}-prod"
+          sed "s|__DSQL_HOSTNAME_STAGE__|${DSQL_HOSTNAME_STAGE}|g; s|__DSQL_HOSTNAME_PROD__|${DSQL_HOSTNAME_PROD}|g" samconfig.template.toml > samconfig.generated.toml
+
+      - name: Deploy SAM stack (prod)
+        working-directory: backend
         run: |
           sam build --template-file template.yaml --cached --parallel
-          sam deploy \
-            --config-env prod \
-            --stack-name okra-project-prod \
-            --parameter-overrides "DsqlHostname=$DSQL_HOSTNAME_PROD" \
-            --no-fail-on-empty-changeset
+          sam deploy --config-file samconfig.generated.toml --config-env prod --no-fail-on-empty-changeset
 
       - name: Print stack outputs
         run: |
