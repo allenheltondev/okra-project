@@ -51,3 +51,56 @@ paths:
                   version:
                     type: string
                     example: 0.1.0
+
+  /submissions:
+    post:
+      operationId: createSubmission
+      summary: Create a pending submission for review
+      tags:
+        - submissions
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - rawLocationText
+                - displayLat
+                - displayLng
+              properties:
+                contributorName:
+                  type: string
+                contributorEmail:
+                  type: string
+                storyText:
+                  type: string
+                rawLocationText:
+                  type: string
+                privacyMode:
+                  type: string
+                  enum: [exact, nearby, neighborhood, city]
+                displayLat:
+                  type: number
+                displayLng:
+                  type: number
+      responses:
+        '201':
+          description: Submission created
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - submissionId
+                  - status
+                properties:
+                  submissionId:
+                    type: string
+                  status:
+                    type: string
+                    example: pending_review
+                  createdAt:
+                    type: string
+        '422':
+          description: Validation error
