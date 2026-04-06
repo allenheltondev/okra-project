@@ -1,13 +1,15 @@
-import type { APIGatewayProxyStructuredResultV2 } from 'aws-lambda';
-import { handler } from '../src/handlers/health.mjs';
+import { handler } from '../src/handlers/api.mjs';
 
-describe('health handler', () => {
+describe('health endpoint', () => {
   it('returns 200 and ok payload', async () => {
-    const res = (await handler(
-      {} as never,
-      {} as never,
-      () => undefined as never
-    )) as APIGatewayProxyStructuredResultV2;
+    const res = await handler({
+      rawPath: '/health',
+      requestContext: {
+        requestId: 'health-req',
+        http: { method: 'GET' }
+      },
+      headers: {}
+    });
 
     expect(res.statusCode).toBe(200);
 
