@@ -1,0 +1,22 @@
+version = 0.1
+
+[dev.deploy.parameters]
+stack_name = "okra-project-dev"
+resolve_s3 = true
+s3_prefix = "okra-project-dev"
+region = "us-east-1"
+confirm_changeset = false
+capabilities = "CAPABILITY_IAM"
+image_repositories = []
+# When ready to bind Good Roots shared Cognito values, uncomment and set:
+# parameter_overrides = "SharedUserPoolId=us-east-1_xxxxx SharedUserPoolClientId=yyyyy"
+
+[prod.deploy.parameters]
+stack_name = "okra-project-prod"
+resolve_s3 = true
+s3_prefix = "okra-project-prod"
+region = "us-east-1"
+confirm_changeset = false
+capabilities = "CAPABILITY_IAM"
+image_repositories = []
+# parameter_overrides = "SharedUserPoolId=us-east-1_xxxxx SharedUserPoolClientId=yyyyy"
