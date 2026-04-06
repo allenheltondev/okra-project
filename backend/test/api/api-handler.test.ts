@@ -1,4 +1,4 @@
-import { handler } from '../src/handlers/api.mjs';
+import { handler } from '../../src/handlers/api.mjs';
 
 function makeRestApiEvent(path, method = 'GET') {
   return {
@@ -12,7 +12,7 @@ function makeRestApiEvent(path, method = 'GET') {
     pathParameters: null,
     stageVariables: null,
     requestContext: {
-      requestId: 'health-req',
+      requestId: 'req-1',
       path,
       stage: 'api',
       identity: {
@@ -25,13 +25,20 @@ function makeRestApiEvent(path, method = 'GET') {
   };
 }
 
-describe('health endpoint', () => {
-  it('returns 200 and ok payload', async () => {
+describe('api handler skeleton', () => {
+  it('returns health payload for GET /health', async () => {
     const res = await handler(makeRestApiEvent('/health'));
 
     expect(res.statusCode).toBe(200);
 
-    const parsed = JSON.parse(String(res.body ?? '{}'));
-    expect(parsed.ok).toBe(true);
+    const payload = JSON.parse(String(res.body));
+    expect(payload.ok).toBe(true);
+    expect(payload.service).toBe('okra-project-api');
+  });
+
+  it('returns not-found payload for unknown route', async () => {
+    const res = await handler(makeRestApiEvent('/does-not-exist'));
+
+    expect(res.statusCode).toBe(404);
   });
 });

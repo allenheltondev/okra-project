@@ -33,6 +33,7 @@ Globals:
     Cors:
       AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
       AllowHeaders: "'Content-Type,Authorization,Idempotency-Key,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+      AllowOrigin: "'*'"
 
 Metadata:
   esbuild-properties: &esbuild-properties
@@ -199,24 +200,30 @@ Resources:
               Bool:
                 aws:SecureTransport: false
 
-  HealthFunction:
+  ApiFunction:
     Type: AWS::Serverless::Function
     Metadata:
       BuildMethod: esbuild
       BuildProperties:
         <<: *esbuild-properties
         EntryPoints:
-          - src/handlers/health.mjs
+          - src/handlers/api.mjs
     Properties:
       CodeUri: ./
-      Handler: src/handlers/health.handler
+      Handler: src/handlers/api.handler
       Events:
-        HealthRoute:
+        ApiProxy:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
-            Path: /health
-            Method: GET
+            Path: /{proxy+}
+            Method: ANY
+        ApiRoot:
+          Type: Api
+          Properties:
+            RestApiId: !Ref ApiGateway
+            Path: /
+            Method: ANY
 
 Outputs:
   HttpApiUrl:
