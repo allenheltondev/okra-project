@@ -7,11 +7,17 @@ on:
     paths:
       - 'frontend/**'
       - 'backend/template.yaml'
+      - 'backend/samconfig.toml'
       - '.github/workflows/frontend-deploy.yml'
 
 permissions:
   id-token: write
   contents: read
+
+env:
+  ENV_NAME: dev
+  AWS_REGION: us-east-1
+  STACK_NAME: okra-project-dev
 
 jobs:
   deploy:
@@ -27,6 +33,9 @@ jobs:
           node-version: '24'
           cache: npm
 
+      - name: Setup SAM CLI
+        uses: aws-actions/setup-sam@v2
+
       - name: Install dependencies
         run: npm ci
 
@@ -37,17 +46,23 @@ jobs:
         uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_ARN }}
-          aws-region: ${{ secrets.AWS_REGION }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Deploy SAM stack (env: dev)
+        working-directory: backend
+        run: |
+          sam build --template-file template.yaml
+          sam deploy --config-env $ENV_NAME --no-fail-on-empty-changeset
 
       - name: Resolve stack outputs
         id: stack
         run: |
           FRONTEND_BUCKET=$(aws cloudformation describe-stacks \
-            --stack-name "${{ secrets.AWS_STACK_NAME }}" \
+            --stack-name "$STACK_NAME" \
             --query "Stacks[0].Outputs[?OutputKey=='FrontendBucketName'].OutputValue" \
             --output text)
           DISTRIBUTION_ID=$(aws cloudformation describe-stacks \
-            --stack-name "${{ secrets.AWS_STACK_NAME }}" \
+            --stack-name "$STACK_NAME" \
             --query "Stacks[0].Outputs[?OutputKey=='FrontendDistributionId'].OutputValue" \
             --output text)
 
