@@ -50,8 +50,11 @@ Resources:
     Properties:
       TracingEnabled: true
       StageName: api
-      DefinitionUri: openapi.yaml
-      MergeDefinitions: true
+      DefinitionBody:
+        Fn::Transform:
+          Name: AWS::Include
+          Parameters:
+            Location: ./publicapi.yaml
 
   FrontendBucket:
     Type: AWS::S3::Bucket
