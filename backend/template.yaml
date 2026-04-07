@@ -254,6 +254,10 @@ Resources:
               Action:
                 - events:PutEvents
               Resource: !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/default'
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+              Resource: !Sub '${MediaBucket.Arn}/temp-photos/*'
       Events:
         ApiProxy:
           Type: Api

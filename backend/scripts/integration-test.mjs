@@ -1,5 +1,3 @@
-import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
-
 const BASE_URL = process.env.API_BASE_URL;
 
 if (!BASE_URL) {
@@ -86,33 +84,12 @@ async function createPhotoAndUpload() {
   assertCheck(typeof intentRes.json?.photoId === 'string', 'POST /photos returns photoId');
   assertCheck(typeof intentRes.json?.uploadUrl === 'string', 'POST /photos returns uploadUrl');
 
-  const bytes = tinyPngBuffer();
-
   const uploadRes = await fetch(intentRes.json.uploadUrl, {
     method: 'PUT',
-    body: bytes
+    body: tinyPngBuffer()
   });
 
-  if (uploadRes.status < 200 || uploadRes.status >= 300) {
-    const fallbackS3 = new S3Client({
-      region: process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? 'us-east-1'
-    });
-
-    await fallbackS3.send(
-      new PutObjectCommand({
-        Bucket: intentRes.json.bucket,
-        Key: intentRes.json.s3Key,
-        Body: bytes,
-        ContentType: 'image/png'
-      })
-    );
-
-    console.log(
-      `${color.dim}  presigned PUT returned ${uploadRes.status}; uploaded via AWS SDK fallback for CI stability${color.reset}`
-    );
-  } else {
-    assertCheck(uploadRes.status >= 200 && uploadRes.status < 300, `PUT upload succeeds (got ${uploadRes.status})`);
-  }
+  assertCheck(uploadRes.status >= 200 && uploadRes.status < 300, `PUT upload succeeds (got ${uploadRes.status})`);
 
   return intentRes.json.photoId;
 }

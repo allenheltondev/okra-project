@@ -106,7 +106,6 @@ export async function createPhotoUploadIntent(client, payload, sourceIp) {
     uploadUrl,
     method: 'PUT',
     headers: {},
-    bucket: mediaBucket,
     s3Key: objectKey,
     expiresInSeconds: 900
   };
