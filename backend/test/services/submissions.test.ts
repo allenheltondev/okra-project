@@ -6,7 +6,8 @@ describe('submission payload validation', () => {
       rawLocationText: 'Austin, TX',
       displayLat: 30.2672,
       displayLng: -97.7431,
-      privacyMode: 'city'
+      privacyMode: 'city',
+      photoIds: ['550e8400-e29b-41d4-a716-446655440000']
     });
 
     expect(result.valid).toBe(true);

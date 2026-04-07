@@ -28,6 +28,9 @@ Globals:
         SHARED_USER_POOL_ID: !Ref SharedUserPoolId
         SHARED_USER_POOL_CLIENT_ID: !Ref SharedUserPoolClientId
         DATABASE_URL: !Ref DatabaseUrl
+        MEDIA_BUCKET_NAME: !Ref MediaBucket
+        PHOTO_RATE_LIMIT_MAX_REQUESTS: '20'
+        PHOTO_RATE_LIMIT_WINDOW_SECONDS: '3600'
   Api:
     Cors:
       AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
