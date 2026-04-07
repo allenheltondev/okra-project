@@ -27,6 +27,7 @@ Globals:
         NODE_OPTIONS: --enable-source-maps
         SHARED_USER_POOL_ID: !Ref SharedUserPoolId
         SHARED_USER_POOL_CLIENT_ID: !Ref SharedUserPoolClientId
+        ADMIN_REQUIRED_GROUP: admin
         DATABASE_URL: !Ref DatabaseUrl
         MEDIA_BUCKET_NAME: !Ref MediaBucket
         PHOTO_PROCESSING_EVENT_BUS_NAME: default
