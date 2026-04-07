@@ -135,7 +135,7 @@ app.post('/submissions', async ({ req }) => {
       };
     }
 
-    if ((error?.message ?? '').includes('Failed to enqueue')) {
+    if ((error?.message ?? '').includes('Failed to publish')) {
       return {
         statusCode: 502,
         body: {

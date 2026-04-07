@@ -29,7 +29,7 @@ Globals:
         SHARED_USER_POOL_CLIENT_ID: !Ref SharedUserPoolClientId
         DATABASE_URL: !Ref DatabaseUrl
         MEDIA_BUCKET_NAME: !Ref MediaBucket
-        PHOTO_PROCESSING_QUEUE_URL: !Ref PhotoProcessingQueue
+        PHOTO_PROCESSING_EVENT_BUS_NAME: default
         PHOTO_RATE_LIMIT_MAX_REQUESTS: '20'
         PHOTO_RATE_LIMIT_WINDOW_SECONDS: '3600'
   Api:
@@ -203,34 +203,6 @@ Resources:
               Bool:
                 aws:SecureTransport: false
 
-  PhotoProcessingDlq:
-    Type: AWS::SQS::Queue
-
-  PhotoProcessingQueue:
-    Type: AWS::SQS::Queue
-    Properties:
-      VisibilityTimeout: 120
-      MessageRetentionPeriod: 1209600
-      RedrivePolicy:
-        deadLetterTargetArn: !GetAtt PhotoProcessingDlq.Arn
-        maxReceiveCount: 3
-
-  PhotoProcessingQueuePolicy:
-    Type: AWS::SQS::QueuePolicy
-    Properties:
-      Queues:
-        - !Ref PhotoProcessingQueue
-      PolicyDocument:
-        Version: '2012-10-17'
-        Statement:
-          - Effect: Deny
-            Principal: '*'
-            Action: 'sqs:*'
-            Resource: !GetAtt PhotoProcessingQueue.Arn
-            Condition:
-              Bool:
-                aws:SecureTransport: false
-
   PhotoProcessorFunction:
     Type: AWS::Serverless::Function
     Metadata:
@@ -258,11 +230,14 @@ Resources:
               Resource:
                 - !Sub '${MediaBucket.Arn}/*'
       Events:
-        PhotoQueueEvent:
-          Type: SQS
+        PhotoClaimedEvent:
+          Type: EventBridgeRule
           Properties:
-            Queue: !GetAtt PhotoProcessingQueue.Arn
-            BatchSize: 5
+            Pattern:
+              source:
+                - okra.photos
+              detail-type:
+                - photo.claimed
 
   ApiFunction:
     Type: AWS::Serverless::Function
@@ -280,9 +255,8 @@ Resources:
           Statement:
             - Effect: Allow
               Action:
-                - sqs:SendMessage
-                - sqs:SendMessageBatch
-              Resource: !GetAtt PhotoProcessingQueue.Arn
+                - events:PutEvents
+              Resource: !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/default'
       Events:
         ApiProxy:
           Type: Api
@@ -313,9 +287,9 @@ Outputs:
   MediaBucketName:
     Description: S3 bucket for uploaded/processed images
     Value: !Ref MediaBucket
-  PhotoProcessingQueueUrl:
-    Description: Queue URL for claimed-photo processing jobs
-    Value: !Ref PhotoProcessingQueue
+  PhotoProcessingEventBusName:
+    Description: EventBridge bus used for claimed-photo processing events
+    Value: default
   SharedUserPoolIdInUse:
     Description: Passed-through shared User Pool ID
     Value: !Ref SharedUserPoolId

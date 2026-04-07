@@ -1,15 +1,11 @@
-import { SQSClient, SendMessageBatchCommand } from '@aws-sdk/client-sqs';
-
-function getQueueUrl() {
-  const queueUrl = process.env.PHOTO_PROCESSING_QUEUE_URL;
-  if (!queueUrl) {
-    throw new Error('PHOTO_PROCESSING_QUEUE_URL is required');
-  }
-  return queueUrl;
-}
+import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 
 function getRegion() {
   return process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? 'us-east-1';
+}
+
+function getEventBusName() {
+  return process.env.PHOTO_PROCESSING_EVENT_BUS_NAME ?? 'default';
 }
 
 export async function enqueuePhotoProcessing(photoIds) {
@@ -17,24 +13,21 @@ export async function enqueuePhotoProcessing(photoIds) {
     return;
   }
 
-  const queueUrl = getQueueUrl();
-  const sqs = new SQSClient({ region: getRegion() });
+  const eb = new EventBridgeClient({ region: getRegion() });
+  const eventBusName = getEventBusName();
 
   for (let i = 0; i < photoIds.length; i += 10) {
-    const entries = photoIds.slice(i, i + 10).map((photoId, idx) => ({
-      Id: `photo-${i + idx}`,
-      MessageBody: JSON.stringify({ photoId })
+    const entries = photoIds.slice(i, i + 10).map((photoId) => ({
+      EventBusName: eventBusName,
+      Source: 'okra.photos',
+      DetailType: 'photo.claimed',
+      Detail: JSON.stringify({ photoId })
     }));
 
-    const result = await sqs.send(
-      new SendMessageBatchCommand({
-        QueueUrl: queueUrl,
-        Entries: entries
-      })
-    );
+    const result = await eb.send(new PutEventsCommand({ Entries: entries }));
 
-    if ((result.Failed ?? []).length > 0) {
-      throw new Error(`Failed to enqueue ${result.Failed.length} photo processing message(s)`);
+    if ((result.FailedEntryCount ?? 0) > 0) {
+      throw new Error(`Failed to publish ${result.FailedEntryCount} photo processing event(s)`);
     }
   }
 }

@@ -115,11 +115,18 @@ async function processPhoto(photoId) {
 }
 
 export const handler = async (event) => {
-  for (const record of event.Records ?? []) {
-    const body = JSON.parse(record.body ?? '{}');
-    if (!body.photoId) {
-      continue;
+  if (Array.isArray(event?.Records)) {
+    for (const record of event.Records) {
+      const body = JSON.parse(record.body ?? '{}');
+      if (body.photoId) {
+        await processPhoto(body.photoId);
+      }
     }
-    await processPhoto(body.photoId);
+    return;
+  }
+
+  const photoId = event?.detail?.photoId;
+  if (photoId) {
+    await processPhoto(photoId);
   }
 };
