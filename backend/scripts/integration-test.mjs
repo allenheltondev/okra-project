@@ -86,7 +86,6 @@ async function createPhotoAndUpload() {
 
   const uploadRes = await fetch(intentRes.json.uploadUrl, {
     method: 'PUT',
-    headers: { 'content-type': 'image/png' },
     body: tinyPngBuffer()
   });
 

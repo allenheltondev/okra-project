@@ -96,8 +96,7 @@ export async function createPhotoUploadIntent(client, payload, sourceIp) {
   const s3 = new S3Client({ region: getAwsRegion() });
   const command = new PutObjectCommand({
     Bucket: mediaBucket,
-    Key: objectKey,
-    ContentType: payload.contentType
+    Key: objectKey
   });
 
   const uploadUrl = await getSignedUrl(s3, command, { expiresIn: 900 });
@@ -106,9 +105,7 @@ export async function createPhotoUploadIntent(client, payload, sourceIp) {
     photoId,
     uploadUrl,
     method: 'PUT',
-    headers: {
-      'content-type': payload.contentType
-    },
+    headers: {},
     s3Key: objectKey,
     expiresInSeconds: 900
   };
