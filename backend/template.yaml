@@ -27,16 +27,13 @@ Globals:
         NODE_OPTIONS: --enable-source-maps
         SHARED_USER_POOL_ID: !Ref SharedUserPoolId
         SHARED_USER_POOL_CLIENT_ID: !Ref SharedUserPoolClientId
+        ADMIN_REQUIRED_GROUP: admin
         DATABASE_URL: !Ref DatabaseUrl
         MEDIA_BUCKET_NAME: !Ref MediaBucket
         PHOTO_PROCESSING_EVENT_BUS_NAME: default
         PHOTO_RATE_LIMIT_MAX_REQUESTS: '20'
         PHOTO_RATE_LIMIT_WINDOW_SECONDS: '3600'
-  Api:
-    Cors:
-      AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-      AllowHeaders: "'Content-Type,Authorization,Idempotency-Key,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
-      AllowOrigin: "'*'"
+
 
 Metadata:
   esbuild-properties: &esbuild-properties
@@ -57,6 +54,16 @@ Resources:
     Properties:
       TracingEnabled: true
       StageName: api
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization,Idempotency-Key,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+
+  AdminApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      TracingEnabled: true
+      StageName: admin
 
   FrontendBucket:
     Type: AWS::S3::Bucket
@@ -272,6 +279,31 @@ Resources:
             Path: /
             Method: ANY
 
+
+  AdminApiFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        <<: *esbuild-properties
+        EntryPoints:
+          - src/handlers/admin-api.mjs
+    Properties:
+      CodeUri: ./
+      Handler: src/handlers/admin-api.handler
+      Events:
+        AdminApiProxy:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AdminApiGateway
+            Path: /{proxy+}
+            Method: ANY
+        AdminApiRoot:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AdminApiGateway
+            Path: /
+            Method: ANY
 Outputs:
   HttpApiUrl:
     Description: Base URL for the HTTP API
@@ -297,3 +329,8 @@ Outputs:
   SharedUserPoolClientIdInUse:
     Description: Passed-through shared User Pool Client ID
     Value: !Ref SharedUserPoolClientId
+
+
+
+
+
