@@ -1,5 +1,6 @@
 import { Router } from '@aws-lambda-powertools/event-handler/http';
 import { createDbClient } from '../../scripts/db-client.mjs';
+import { registerAdminRoutes } from './admin-routes.mjs';
 
 const app = new Router();
 
@@ -35,6 +36,8 @@ app.get('/version', () => {
     version: '0.1.0'
   };
 });
+
+registerAdminRoutes(app);
 
 app.notFound(() => {
   return new Response(

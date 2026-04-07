@@ -211,6 +211,9 @@ Resources:
     Properties:
       CodeUri: ./
       Handler: src/handlers/api.handler
+      Policies:
+        - EventBridgePutEventsPolicy:
+            EventBusName: default
       Events:
         ApiProxy:
           Type: Api
@@ -224,6 +227,34 @@ Resources:
             RestApiId: !Ref ApiGateway
             Path: /
             Method: ANY
+
+  DeniedPhotoCleanupFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        <<: *esbuild-properties
+        EntryPoints:
+          - src/handlers/denied-photo-cleanup.mjs
+    Properties:
+      CodeUri: ./
+      Handler: src/handlers/denied-photo-cleanup.handler
+      Timeout: 60
+      Events:
+        SubmissionDeniedEvent:
+          Type: EventBridgeRule
+          Properties:
+            Pattern:
+              source:
+                - "okra-project"
+              detail-type:
+                - "SubmissionDenied"
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref MediaBucket
+      Environment:
+        Variables:
+          DATABASE_URL: !Ref DatabaseUrl
 
 Outputs:
   HttpApiUrl:

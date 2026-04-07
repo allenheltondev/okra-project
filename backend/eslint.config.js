@@ -3,7 +3,7 @@ import globals from 'globals';
 
 export default [
   {
-    ignores: ['.aws-sam/**']
+    ignores: ['.aws-sam/**', '**/*.ts']
   },
   js.configs.recommended,
   {

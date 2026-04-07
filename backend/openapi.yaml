@@ -51,3 +51,293 @@ paths:
                   version:
                     type: string
                     example: 0.1.0
+
+  /admin/submissions:
+    get:
+      operationId: listAdminSubmissions
+      summary: List submissions with cursor-based pagination
+      tags:
+        - admin
+      parameters:
+        - name: status
+          in: query
+          required: false
+          schema:
+            type: string
+            default: pending_review
+            enum:
+              - pending_review
+              - approved
+              - denied
+          description: Filter submissions by status. Defaults to pending_review.
+        - name: limit
+          in: query
+          required: false
+          schema:
+            type: integer
+            default: 20
+            minimum: 1
+            maximum: 100
+          description: Page size (1-100). Values above 100 are clamped to 100.
+        - name: cursor
+          in: query
+          required: false
+          schema:
+            type: string
+          description: Opaque pagination cursor token from a previous response.
+      responses:
+        '200':
+          description: Paginated list of submissions
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SubmissionListResponse'
+        '400':
+          description: Invalid query parameter
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+  /admin/submissions/{id}/statuses:
+    post:
+      operationId: transitionSubmissionStatus
+      summary: Transition a submission to approved or denied status
+      tags:
+        - admin
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+          description: Submission ID
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/StatusTransitionRequestBody'
+      responses:
+        '200':
+          description: Submission status transitioned successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/StatusTransitionResponse'
+        '400':
+          description: Validation error (INVALID_ACTION, INVALID_COORDINATES, INVALID_REASON, MISSING_NOTES, MISSING_PHOTOS)
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '404':
+          description: Submission not found
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+        '409':
+          description: Submission already reviewed
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorResponse'
+
+components:
+  schemas:
+    ErrorResponse:
+      type: object
+      required:
+        - error
+      properties:
+        error:
+          type: object
+          required:
+            - code
+            - message
+          properties:
+            code:
+              type: string
+              description: Machine-readable error code
+              example: INVALID_STATUS
+            message:
+              type: string
+              description: Human-readable error message
+              example: Invalid status parameter
+
+    SubmissionListItem:
+      type: object
+      required:
+        - id
+        - privacy_mode
+        - status
+        - created_at
+        - photo_count
+        - has_photos
+        - photos
+      properties:
+        id:
+          type: string
+          format: uuid
+        contributor_name:
+          type: string
+          nullable: true
+        story_text:
+          type: string
+          nullable: true
+        raw_location_text:
+          type: string
+          nullable: true
+        privacy_mode:
+          type: string
+        display_lat:
+          type: number
+          format: double
+          nullable: true
+        display_lng:
+          type: number
+          format: double
+          nullable: true
+        status:
+          type: string
+          enum:
+            - pending_review
+            - approved
+            - denied
+        created_at:
+          type: string
+          format: date-time
+        photo_count:
+          type: integer
+          description: Number of photos associated with this submission
+        has_photos:
+          type: boolean
+          description: Whether the submission has at least one photo
+        photos:
+          type: array
+          items:
+            type: string
+            format: uri
+          description: Pre-signed S3 URLs for submission photos
+
+    SubmissionListResponse:
+      type: object
+      required:
+        - data
+        - cursor
+      properties:
+        data:
+          type: array
+          items:
+            $ref: '#/components/schemas/SubmissionListItem'
+        cursor:
+          type: string
+          nullable: true
+          description: Opaque cursor token for the next page, or null if no more results
+
+    Submission:
+      type: object
+      required:
+        - id
+        - status
+        - created_at
+      properties:
+        id:
+          type: string
+          format: uuid
+        contributor_name:
+          type: string
+          nullable: true
+        story_text:
+          type: string
+          nullable: true
+        raw_location_text:
+          type: string
+          nullable: true
+        privacy_mode:
+          type: string
+        display_lat:
+          type: number
+          format: double
+          nullable: true
+        display_lng:
+          type: number
+          format: double
+          nullable: true
+        status:
+          type: string
+          enum:
+            - pending_review
+            - approved
+            - denied
+        review_notes:
+          type: string
+          nullable: true
+        reviewed_by:
+          type: string
+          format: uuid
+          nullable: true
+        reviewed_at:
+          type: string
+          format: date-time
+          nullable: true
+        created_at:
+          type: string
+          format: date-time
+
+    StatusTransitionRequestBody:
+      type: object
+      required:
+        - status
+      properties:
+        status:
+          type: string
+          enum:
+            - approved
+            - denied
+          description: Target status for the submission
+        review_notes:
+          type: string
+          description: Optional notes from the reviewer
+        display_lat:
+          type: number
+          format: double
+          minimum: -90
+          maximum: 90
+          description: Override latitude for pin adjustment (approval only)
+        display_lng:
+          type: number
+          format: double
+          minimum: -180
+          maximum: 180
+          description: Override longitude for pin adjustment (approval only)
+        reason:
+          type: string
+          enum:
+            - spam
+            - invalid_location
+            - inappropriate
+            - other
+          description: Structured denial reason (required when status is denied)
+
+    StatusTransitionResponse:
+      allOf:
+        - $ref: '#/components/schemas/Submission'
+        - type: object
+          properties:
+            warnings:
+              type: array
+              items:
+                type: object
+                required:
+                  - code
+                  - message
+                properties:
+                  code:
+                    type: string
+                    example: SUSPICIOUS_COORDINATES
+                  message:
+                    type: string
+                    example: "Coordinates are at 0,0 -- verify location is correct"
