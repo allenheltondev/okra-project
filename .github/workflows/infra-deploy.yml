@@ -82,6 +82,21 @@ jobs:
           sam build --template-file template.yaml --cached --parallel
           sam deploy --config-file samconfig.generated.toml --config-env prod --no-fail-on-empty-changeset
 
+      - name: Resolve production API base URL
+        id: api
+        run: |
+          API_ROOT=$(aws cloudformation describe-stacks \
+            --stack-name okra-project-prod \
+            --query "Stacks[0].Outputs[?OutputKey=='HttpApiUrl'].OutputValue" \
+            --output text)
+          API_BASE_URL="${API_ROOT%/}/api"
+          echo "api_base_url=$API_BASE_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Run integration tests against production backend
+        env:
+          API_BASE_URL: ${{ steps.api.outputs.api_base_url }}
+        run: npm run test:integration
+
       - name: Print stack outputs
         run: |
           aws cloudformation describe-stacks \

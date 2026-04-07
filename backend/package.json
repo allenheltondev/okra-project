@@ -12,7 +12,8 @@
     "test": "vitest run",
     "typecheck": "node -e \"console.log('backend typecheck: no TypeScript files yet')\"",
     "db:migrate": "node ./scripts/migrate.mjs",
-    "db:seed": "node ./scripts/seed-dev.mjs"
+    "db:seed": "node ./scripts/seed-dev.mjs",
+    "test:integration": "node ./scripts/integration-test.mjs"
   },
   "dependencies": {
     "@aws-lambda-powertools/event-handler": "^2.32.0",
