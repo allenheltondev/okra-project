@@ -239,9 +239,15 @@ Resources:
         <<: *esbuild-properties
         EntryPoints:
           - src/handlers/photo-processor.mjs
+        External:
+          - pg
+          - '@napi-rs/image'
+          - '@napi-rs/image-linux-x64-gnu'
     Properties:
       CodeUri: ./
       Handler: src/handlers/photo-processor.handler
+      Architectures:
+        - x86_64
       Timeout: 60
       MemorySize: 1024
       Policies:
