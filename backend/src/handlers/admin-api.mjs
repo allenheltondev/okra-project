@@ -1,24 +1,17 @@
 import { Router } from '@aws-lambda-powertools/event-handler/http';
-import { requireAdminAccess } from '../services/auth.mjs';
 import { registerAdminRoutes } from './admin-routes.mjs';
 
 const app = new Router();
 
 app.get('/health', async ({ event }) => {
-  const auth = await requireAdminAccess(event);
-  if (!auth.ok) {
-    return {
-      statusCode: auth.statusCode,
-      body: auth.body
-    };
-  }
+  const authorizer = event.requestContext?.authorizer ?? {};
 
   return {
     statusCode: 200,
     body: {
       ok: true,
       admin: true,
-      subject: auth.payload.sub
+      subject: authorizer.sub ?? 'unknown'
     }
   };
 });

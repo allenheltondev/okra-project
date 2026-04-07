@@ -194,7 +194,7 @@ async function handleApproval(ctx, submissionId, { review_notes, display_lat, di
       return errorResponse(400, 'MISSING_PHOTOS', 'At least one photo is required for approval');
     }
 
-    const cognitoSub = ctx.event.requestContext?.authorizer?.claims?.sub || 'system';
+    const cognitoSub = ctx.event.requestContext?.authorizer?.sub || 'system';
     const adminResult = await client.query(
       'SELECT id FROM admin_users WHERE cognito_sub = $1', [cognitoSub]
     );
@@ -278,7 +278,7 @@ async function handleDenial(ctx, submissionId, { reason, review_notes }) {
   const client = await createDbClient();
   await client.connect();
   try {
-    const cognitoSub = ctx.event.requestContext?.authorizer?.claims?.sub || 'system';
+    const cognitoSub = ctx.event.requestContext?.authorizer?.sub || 'system';
     const adminResult = await client.query(
       'SELECT id FROM admin_users WHERE cognito_sub = $1', [cognitoSub]
     );

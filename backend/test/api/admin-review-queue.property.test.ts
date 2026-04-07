@@ -68,7 +68,7 @@ function makeRestApiEvent(
       path,
       stage: 'api',
       identity: { sourceIp: '127.0.0.1', userAgent: 'vitest' },
-      authorizer: { claims: { sub: 'admin-cognito-sub-1' } },
+      authorizer: { sub: 'admin-cognito-sub-1' },
     },
     body: options.body !== undefined ? JSON.stringify(options.body) : null,
     isBase64Encoded: false,

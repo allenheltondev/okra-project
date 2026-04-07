@@ -68,6 +68,11 @@ Resources:
         AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
         AllowHeaders: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
         AllowOrigin: "'*'"
+      Auth:
+        DefaultAuthorizer: AdminTokenAuthorizer
+        Authorizers:
+          AdminTokenAuthorizer:
+            FunctionArn: !GetAtt AdminAuthorizerFunction.Arn
 
   FrontendBucket:
     Type: AWS::S3::Bucket
@@ -282,6 +287,20 @@ Resources:
             RestApiId: !Ref ApiGateway
             Path: /
             Method: ANY
+
+  AdminAuthorizerFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        <<: *esbuild-properties
+        EntryPoints:
+          - src/handlers/admin-authorizer.mjs
+    Properties:
+      CodeUri: ./
+      Handler: src/handlers/admin-authorizer.handler
+      Timeout: 5
+      MemorySize: 256
 
   AdminApiFunction:
     Type: AWS::Serverless::Function
