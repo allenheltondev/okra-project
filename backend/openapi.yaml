@@ -53,19 +53,6 @@ paths:
                     type: string
                     example: 0.1.0
 
-  /admin/health:
-    get:
-      operationId: getAdminHealth
-      summary: Admin-only health probe
-      tags:
-        - admin
-      responses:
-        '200':
-          description: Authenticated admin response
-        '401':
-          description: Missing or invalid token
-        '403':
-          description: Valid token but not in required admin group
 
   /photos:
     post:
@@ -173,3 +160,4 @@ paths:
                     type: string
         '422':
           description: Validation error
+

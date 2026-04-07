@@ -1,6 +1,5 @@
 import { Router } from '@aws-lambda-powertools/event-handler/http';
 import { createDbClient } from '../../scripts/db-client.mjs';
-import { requireAdminAccess } from '../services/auth.mjs';
 import {
   createPhotoUploadIntent,
   enforcePhotoRateLimit,
@@ -41,25 +40,6 @@ app.get('/version', () => {
   return {
     ok: true,
     version: '0.1.0'
-  };
-});
-
-app.get('/admin/health', async ({ event }) => {
-  const auth = await requireAdminAccess(event);
-  if (!auth.ok) {
-    return {
-      statusCode: auth.statusCode,
-      body: auth.body
-    };
-  }
-
-  return {
-    statusCode: 200,
-    body: {
-      ok: true,
-      admin: true,
-      subject: auth.payload.sub
-    }
   };
 });
 

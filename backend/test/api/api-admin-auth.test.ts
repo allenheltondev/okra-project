@@ -1,4 +1,4 @@
-import { handler } from '../../src/handlers/api.mjs';
+import { handler } from '../../src/handlers/admin-api.mjs';
 
 function makeRestApiEvent(path, method = 'GET', headers = {}) {
   return {
@@ -14,7 +14,7 @@ function makeRestApiEvent(path, method = 'GET', headers = {}) {
     requestContext: {
       requestId: 'req-admin-auth',
       path,
-      stage: 'api',
+      stage: 'admin',
       identity: {
         sourceIp: '127.0.0.1',
         userAgent: 'vitest'
@@ -27,12 +27,12 @@ function makeRestApiEvent(path, method = 'GET', headers = {}) {
 
 describe('admin auth guard', () => {
   it('returns 401 when bearer token is missing', async () => {
-    const res = await handler(makeRestApiEvent('/admin/health'));
+    const res = await handler(makeRestApiEvent('/health'));
     expect(res.statusCode).toBe(401);
   });
 
   it('allows test bypass for admin route in test env', async () => {
-    const res = await handler(makeRestApiEvent('/admin/health', 'GET', { 'x-test-admin': 'true' }));
+    const res = await handler(makeRestApiEvent('/health', 'GET', { 'x-test-admin': 'true' }));
     expect(res.statusCode).toBe(200);
     const body = JSON.parse(String(res.body));
     expect(body.admin).toBe(true);
