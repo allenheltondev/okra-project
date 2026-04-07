@@ -79,7 +79,7 @@ jobs:
       - name: Build and deploy preview infra
         working-directory: backend
         run: |
-          sam build --template-file template.yaml --cached --parallel
+          npm_config_platform=linux npm_config_arch=arm64 sam build --template-file template.yaml --cached --parallel
           sam deploy --config-file samconfig.generated.toml --config-env preview
 
       - name: Resolve preview API base URL

@@ -79,7 +79,7 @@ jobs:
       - name: Deploy SAM stack (prod)
         working-directory: backend
         run: |
-          sam build --template-file template.yaml --cached --parallel
+          npm_config_platform=linux npm_config_arch=arm64 sam build --template-file template.yaml --cached --parallel
           sam deploy --config-file samconfig.generated.toml --config-env prod --no-fail-on-empty-changeset
 
       - name: Resolve production API base URL

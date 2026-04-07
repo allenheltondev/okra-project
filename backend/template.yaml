@@ -20,6 +20,8 @@ Globals:
     Runtime: nodejs24.x
     Timeout: 10
     MemorySize: 1024
+    Architectures:
+      - arm64
     Environment:
       Variables:
         NODE_OPTIONS: --enable-source-maps
@@ -240,12 +242,10 @@ Resources:
         External:
           - pg
           - '@napi-rs/image'
-          - '@napi-rs/image-linux-x64-gnu'
+          - '@napi-rs/image-linux-arm64-gnu'
     Properties:
       CodeUri: ./
       Handler: src/handlers/photo-processor.handler
-      Architectures:
-        - x86_64
       Timeout: 60
       MemorySize: 1024
       Policies:
@@ -275,8 +275,6 @@ Resources:
     Properties:
       CodeUri: ./
       Handler: src/handlers/api.handler
-      Architectures:
-        - arm64
       Policies:
         - Version: '2012-10-17'
           Statement:
