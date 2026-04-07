@@ -76,6 +76,20 @@ jobs:
           export STACK_NAME_PREVIEW="$STACK_NAME"
           sed "s|__DATABASE_URL__|${ESCAPED_DATABASE_URL}|g; s|__STACK_NAME_PREVIEW__|${STACK_NAME_PREVIEW}|g" samconfig.template.toml > samconfig.generated.toml
 
+      - name: Recover preview stack if stuck in ROLLBACK_COMPLETE
+        shell: bash
+        run: |
+          STATUS=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --query "Stacks[0].StackStatus" \
+            --output text 2>/dev/null || true)
+
+          if [ "$STATUS" = "ROLLBACK_COMPLETE" ]; then
+            echo "Preview stack is ROLLBACK_COMPLETE. Deleting before fresh deploy..."
+            aws cloudformation delete-stack --stack-name "$STACK_NAME"
+            aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME"
+          fi
+
       - name: Build and deploy preview infra
         working-directory: backend
         run: |
