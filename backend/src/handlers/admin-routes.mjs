@@ -23,6 +23,14 @@ export function decodeCursor(token) {
   try {
     const parsed = JSON.parse(Buffer.from(token, 'base64url').toString());
     if (!parsed.created_at || !parsed.id) return null;
+
+    // Validate created_at is a valid ISO 8601 timestamp
+    const ts = new Date(parsed.created_at);
+    if (isNaN(ts.getTime())) return null;
+
+    // Validate id is a valid UUID
+    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(parsed.id)) return null;
+
     return { created_at: parsed.created_at, id: parsed.id };
   } catch {
     return null;
@@ -186,6 +194,17 @@ async function handleApproval(ctx, submissionId, { review_notes, display_lat, di
   const client = await createDbClient();
   await client.connect();
   try {
+    // Verify submission exists and is pending before anything else
+    const existsResult = await client.query(
+      'SELECT id, status FROM submissions WHERE id = $1', [submissionId]
+    );
+    if (existsResult.rows.length === 0) {
+      return errorResponse(404, 'NOT_FOUND', 'Submission not found');
+    }
+    if (existsResult.rows[0].status !== 'pending_review') {
+      return errorResponse(409, 'INVALID_STATE', `Submission is already ${existsResult.rows[0].status}`);
+    }
+
     const photoCountResult = await client.query(
       'SELECT COUNT(*)::int AS count FROM submission_photos WHERE submission_id = $1',
       [submissionId]
@@ -223,14 +242,9 @@ async function handleApproval(ctx, submissionId, { review_notes, display_lat, di
 
     const updateResult = await client.query(updateText, updateParams);
     if (updateResult.rowCount === 0) {
-      const existsResult = await client.query(
-        'SELECT id, status FROM submissions WHERE id = $1', [submissionId]
-      );
+      // Race condition: status changed between our check and the update
       await client.query('ROLLBACK');
-      if (existsResult.rows.length === 0) {
-        return errorResponse(404, 'NOT_FOUND', 'Submission not found');
-      }
-      return errorResponse(409, 'INVALID_STATE', `Submission is already ${existsResult.rows[0].status}`);
+      return errorResponse(409, 'INVALID_STATE', 'Submission status changed during processing');
     }
 
     const row = updateResult.rows[0];

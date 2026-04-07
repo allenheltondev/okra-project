@@ -297,6 +297,7 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
   function setupApproveMocks(overrides: Record<string, any> = {}) {
     const approvedRow = makeApprovedRow(overrides);
     queryResponses = {
+      'SELECT id, status FROM submissions': { rows: [{ id: 'sub-uuid-1', status: 'pending_review' }] },
       'COUNT(*)': { rows: [{ count: 2 }] },
       'admin_users': { rows: [ADMIN_USER_ROW] },
       'BEGIN': { rows: [] },
@@ -355,7 +356,10 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
   });
 
   it('returns MISSING_PHOTOS when submission has zero photos', async () => {
-    queryResponses = { 'COUNT(*)': { rows: [{ count: 0 }] } };
+    queryResponses = {
+      'SELECT id, status FROM submissions': { rows: [{ id: 'sub-uuid-1', status: 'pending_review' }] },
+      'COUNT(*)': { rows: [{ count: 0 }] },
+    };
     const { body } = parseRes(await handler(
       makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
         pathParameters: { id: 'sub-uuid-1' }, body: { status: 'approved' },
@@ -366,12 +370,7 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
 
   it('returns NOT_FOUND for non-existent submission', async () => {
     queryResponses = {
-      'COUNT(*)': { rows: [{ count: 1 }] },
-      'admin_users': { rows: [ADMIN_USER_ROW] },
-      'BEGIN': { rows: [] },
-      'UPDATE submissions': { rows: [], rowCount: 0 },
       'SELECT id, status FROM submissions': { rows: [] },
-      'ROLLBACK': { rows: [] },
     };
     const { body } = parseRes(await handler(
       makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
@@ -383,12 +382,7 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
 
   it('returns INVALID_STATE for already-reviewed submission', async () => {
     queryResponses = {
-      'COUNT(*)': { rows: [{ count: 1 }] },
-      'admin_users': { rows: [ADMIN_USER_ROW] },
-      'BEGIN': { rows: [] },
-      'UPDATE submissions': { rows: [], rowCount: 0 },
       'SELECT id, status FROM submissions': { rows: [{ id: 'sub-uuid-1', status: 'approved' }] },
-      'ROLLBACK': { rows: [] },
     };
     const { body } = parseRes(await handler(
       makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {

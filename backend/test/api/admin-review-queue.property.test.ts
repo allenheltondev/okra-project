@@ -597,6 +597,9 @@ describe('Property 5: Transactional Review Integrity', () => {
 
           if (action === 'approve') {
             queryResponses = {
+              'SELECT id, status FROM submissions': shouldSucceed
+                ? { rows: [{ id: submissionId, status: 'pending_review' }] }
+                : { rows: [{ id: submissionId, status: 'approved' }] },
               'COUNT(*)': { rows: [{ count: 2 }] },
               'admin_users': { rows: [ADMIN_USER_ROW] },
               'BEGIN': { rows: [] },
@@ -605,9 +608,6 @@ describe('Property 5: Transactional Review Integrity', () => {
                 : { rows: [], rowCount: 0 },
               'INSERT INTO submission_reviews': { rows: [] },
               'COMMIT': { rows: [] },
-              'SELECT id, status FROM submissions': shouldSucceed
-                ? { rows: [] }
-                : { rows: [{ id: submissionId, status: 'approved' }] },
               'ROLLBACK': { rows: [] },
             };
           } else {
@@ -670,9 +670,12 @@ describe('Property 5: Transactional Review Integrity', () => {
             expect(commitIdx).toBeGreaterThan(insertIdx);
           } else {
             expect(parsed.statusCode).toBe(409);
-            // Verify ROLLBACK was called
-            const rollbackIdx = queryTexts.findIndex((t) => t.includes('ROLLBACK'));
-            expect(rollbackIdx).toBeGreaterThanOrEqual(0);
+            if (action === 'deny') {
+              // Denial path still uses UPDATE + fallback, so ROLLBACK is expected
+              const rollbackIdx = queryTexts.findIndex((t) => t.includes('ROLLBACK'));
+              expect(rollbackIdx).toBeGreaterThanOrEqual(0);
+            }
+            // Approval path catches non-pending status early, before BEGIN
           }
         }
       ),
@@ -719,6 +722,9 @@ describe('Property 6: State Conflict Detection', () => {
 
           if (action === 'approve') {
             queryResponses = {
+              'SELECT id, status FROM submissions': isMissing
+                ? { rows: [] }
+                : { rows: [{ id: submissionId, status: submissionState }] },
               'COUNT(*)': { rows: [{ count: 2 }] },
               'admin_users': { rows: [ADMIN_USER_ROW] },
               'BEGIN': { rows: [] },
@@ -727,9 +733,6 @@ describe('Property 6: State Conflict Detection', () => {
                 : { rows: [], rowCount: 0 },
               'INSERT INTO submission_reviews': { rows: [] },
               'COMMIT': { rows: [] },
-              'SELECT id, status FROM submissions': isMissing
-                ? { rows: [] }
-                : { rows: [{ id: submissionId, status: submissionState }] },
               'ROLLBACK': { rows: [] },
             };
           } else {
@@ -835,6 +838,7 @@ describe('Property 7: Review Notes Round-Trip', () => {
 
           if (action === 'approve') {
             queryResponses = {
+              'SELECT id, status FROM submissions': { rows: [{ id: submissionId, status: 'pending_review' }] },
               'COUNT(*)': { rows: [{ count: 2 }] },
               'admin_users': { rows: [ADMIN_USER_ROW] },
               'BEGIN': { rows: [] },
@@ -986,6 +990,7 @@ describe('Property 8: Coordinate Validation', () => {
 
           // Set up mocks for a successful approval path
           queryResponses = {
+            'SELECT id, status FROM submissions': { rows: [{ id: 'test-id', status: 'pending_review' }] },
             'COUNT(*)': { rows: [{ count: 2 }] },
             'admin_users': { rows: [ADMIN_USER_ROW] },
             'BEGIN': { rows: [] },
@@ -1054,6 +1059,7 @@ describe('Property 8: Coordinate Validation', () => {
       vi.clearAllMocks();
 
       queryResponses = {
+        'SELECT id, status FROM submissions': { rows: [{ id: 'test-id', status: 'pending_review' }] },
         'COUNT(*)': { rows: [{ count: 2 }] },
         'admin_users': { rows: [ADMIN_USER_ROW] },
         'BEGIN': { rows: [] },
@@ -1267,6 +1273,7 @@ describe('Property 10: Photo Requirement for Approval', () => {
           };
 
           queryResponses = {
+            'SELECT id, status FROM submissions': { rows: [{ id: submissionId, status: 'pending_review' }] },
             'COUNT(*)': { rows: [{ count: photoCount }] },
             'admin_users': { rows: [ADMIN_USER_ROW] },
             'BEGIN': { rows: [] },
@@ -1344,6 +1351,7 @@ describe('Property 11: Suspicious Coordinates Warning', () => {
           };
 
           queryResponses = {
+            'SELECT id, status FROM submissions': { rows: [{ id: submissionId, status: 'pending_review' }] },
             'COUNT(*)': { rows: [{ count: 2 }] },
             'admin_users': { rows: [ADMIN_USER_ROW] },
             'BEGIN': { rows: [] },
