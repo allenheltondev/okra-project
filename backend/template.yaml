@@ -50,8 +50,6 @@ Metadata:
       - index.mjs
     Banner:
       - js=import { createRequire } from 'module'; const require = createRequire(import.meta.url);
-    External:
-      - 'pg'
 
 Resources:
   ApiGateway:
@@ -212,7 +210,6 @@ Resources:
         EntryPoints:
           - src/handlers/photo-processor.mjs
         External:
-          - pg
           - '@napi-rs/image'
           - '@napi-rs/image-linux-arm64-gnu'
     Properties:
