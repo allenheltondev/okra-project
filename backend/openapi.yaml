@@ -90,6 +90,8 @@ paths:
                     example: PUT
                   headers:
                     type: object
+                  bucket:
+                    type: string
                   s3Key:
                     type: string
                   expiresInSeconds:
