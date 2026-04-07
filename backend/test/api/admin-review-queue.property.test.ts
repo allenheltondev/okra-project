@@ -194,6 +194,7 @@ describe('Property 1: Pagination Completeness', () => {
                 privacy_mode: 'public',
                 display_lat: 34.05,
                 display_lng: -118.24,
+                created_at_raw: s.created_at.toISOString().replace('T', ' ').replace('Z', '+00'),
               }));
               return { rows, rowCount: rows.length };
             },
@@ -504,6 +505,7 @@ describe('Property 4: List Response Shape Completeness', () => {
             display_lng: -118.24,
             status: 'pending_review',
             created_at: new Date(2024, 0, 1 + i),
+            created_at_raw: `2024-01-${String(1 + i).padStart(2, '0')} 00:00:00.000000+00`,
           }));
 
           const photoRows: any[] = [];
@@ -579,7 +581,7 @@ describe('Property 5: Transactional Review Integrity', () => {
           queryCalls = [];
           vi.clearAllMocks();
 
-          const submissionId = 'test-sub-id';
+          const submissionId = '550e8400-e29b-41d4-a716-446655440002';
           const updatedRow = {
             id: submissionId,
             contributor_name: 'Alice',
@@ -701,7 +703,7 @@ describe('Property 6: State Conflict Detection', () => {
           queryCalls = [];
           vi.clearAllMocks();
 
-          const submissionId = 'test-sub-id';
+          const submissionId = '550e8400-e29b-41d4-a716-446655440002';
           const updatedRow = {
             id: submissionId,
             contributor_name: 'Alice',
@@ -820,7 +822,7 @@ describe('Property 7: Review Notes Round-Trip', () => {
           queryCalls = [];
           vi.clearAllMocks();
 
-          const submissionId = 'test-sub-id';
+          const submissionId = '550e8400-e29b-41d4-a716-446655440002';
           const updatedRow = {
             id: submissionId,
             contributor_name: 'Alice',
@@ -923,8 +925,8 @@ describe('Property 8: Coordinate Validation', () => {
         async (coords) => {
           queryCalls = [];
           const res = await handler(
-            makeRestApiEvent('/admin/submissions/test-id/statuses', 'POST', {
-              pathParameters: { id: 'test-id' },
+            makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440003/statuses', 'POST', {
+              pathParameters: { id: '550e8400-e29b-41d4-a716-446655440003' },
               body: { status: 'approved', ...coords },
             })
           );
@@ -965,8 +967,8 @@ describe('Property 8: Coordinate Validation', () => {
         async (coords) => {
           queryCalls = [];
           const res = await handler(
-            makeRestApiEvent('/admin/submissions/test-id/statuses', 'POST', {
-              pathParameters: { id: 'test-id' },
+            makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440003/statuses', 'POST', {
+              pathParameters: { id: '550e8400-e29b-41d4-a716-446655440003' },
               body: { status: 'approved', ...coords },
             })
           );
@@ -990,13 +992,13 @@ describe('Property 8: Coordinate Validation', () => {
 
           // Set up mocks for a successful approval path
           queryResponses = {
-            'SELECT id, status FROM submissions': { rows: [{ id: 'test-id', status: 'pending_review' }] },
+            'SELECT id, status FROM submissions': { rows: [{ id: '550e8400-e29b-41d4-a716-446655440003', status: 'pending_review' }] },
             'COUNT(*)': { rows: [{ count: 2 }] },
             'admin_users': { rows: [ADMIN_USER_ROW] },
             'BEGIN': { rows: [] },
             'UPDATE submissions': {
               rows: [{
-                id: 'test-id',
+                id: '550e8400-e29b-41d4-a716-446655440003',
                 contributor_name: 'Alice',
                 story_text: 'Story',
                 raw_location_text: 'Loc',
@@ -1029,8 +1031,8 @@ describe('Property 8: Coordinate Validation', () => {
           });
 
           const res = await handler(
-            makeRestApiEvent('/admin/submissions/test-id/statuses', 'POST', {
-              pathParameters: { id: 'test-id' },
+            makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440003/statuses', 'POST', {
+              pathParameters: { id: '550e8400-e29b-41d4-a716-446655440003' },
               body: { status: 'approved', display_lat: lat, display_lng: lng },
             })
           );
@@ -1059,13 +1061,13 @@ describe('Property 8: Coordinate Validation', () => {
       vi.clearAllMocks();
 
       queryResponses = {
-        'SELECT id, status FROM submissions': { rows: [{ id: 'test-id', status: 'pending_review' }] },
+        'SELECT id, status FROM submissions': { rows: [{ id: '550e8400-e29b-41d4-a716-446655440003', status: 'pending_review' }] },
         'COUNT(*)': { rows: [{ count: 2 }] },
         'admin_users': { rows: [ADMIN_USER_ROW] },
         'BEGIN': { rows: [] },
         'UPDATE submissions': {
           rows: [{
-            id: 'test-id',
+            id: '550e8400-e29b-41d4-a716-446655440003',
             contributor_name: 'Alice',
             story_text: 'Story',
             raw_location_text: 'Loc',
@@ -1098,8 +1100,8 @@ describe('Property 8: Coordinate Validation', () => {
       });
 
       const res = await handler(
-        makeRestApiEvent('/admin/submissions/test-id/statuses', 'POST', {
-          pathParameters: { id: 'test-id' },
+        makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440003/statuses', 'POST', {
+          pathParameters: { id: '550e8400-e29b-41d4-a716-446655440003' },
           body: { status: 'approved', ...coords },
         })
       );
@@ -1134,8 +1136,8 @@ describe('Property 9: Denial Reason Validation', () => {
         async (reason) => {
           queryCalls = [];
           const res = await handler(
-            makeRestApiEvent('/admin/submissions/test-id/statuses', 'POST', {
-              pathParameters: { id: 'test-id' },
+            makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440003/statuses', 'POST', {
+              pathParameters: { id: '550e8400-e29b-41d4-a716-446655440003' },
               body: { status: 'denied', reason, review_notes: 'some notes' },
             })
           );
@@ -1165,8 +1167,8 @@ describe('Property 9: Denial Reason Validation', () => {
             body.review_notes = notes;
           }
           const res = await handler(
-            makeRestApiEvent('/admin/submissions/test-id/statuses', 'POST', {
-              pathParameters: { id: 'test-id' },
+            makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440003/statuses', 'POST', {
+              pathParameters: { id: '550e8400-e29b-41d4-a716-446655440003' },
               body,
             })
           );
@@ -1189,7 +1191,7 @@ describe('Property 9: Denial Reason Validation', () => {
           vi.clearAllMocks();
 
           const deniedRow = {
-            id: 'test-id',
+            id: '550e8400-e29b-41d4-a716-446655440003',
             contributor_name: 'Alice',
             story_text: 'Story',
             raw_location_text: 'Loc',
@@ -1225,8 +1227,8 @@ describe('Property 9: Denial Reason Validation', () => {
           });
 
           const res = await handler(
-            makeRestApiEvent('/admin/submissions/test-id/statuses', 'POST', {
-              pathParameters: { id: 'test-id' },
+            makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440003/statuses', 'POST', {
+              pathParameters: { id: '550e8400-e29b-41d4-a716-446655440003' },
               body: { status: 'denied', reason, review_notes: notes },
             })
           );
@@ -1256,7 +1258,7 @@ describe('Property 10: Photo Requirement for Approval', () => {
           queryCalls = [];
           vi.clearAllMocks();
 
-          const submissionId = 'test-sub-id';
+          const submissionId = '550e8400-e29b-41d4-a716-446655440002';
           const approvedRow = {
             id: submissionId,
             contributor_name: 'Alice',
@@ -1334,7 +1336,7 @@ describe('Property 11: Suspicious Coordinates Warning', () => {
           queryCalls = [];
           vi.clearAllMocks();
 
-          const submissionId = 'test-sub-id';
+          const submissionId = '550e8400-e29b-41d4-a716-446655440002';
           const approvedRow = {
             id: submissionId,
             contributor_name: 'Alice',
@@ -1434,37 +1436,37 @@ describe('Property 12: Error Response Shape Consistency', () => {
           })),
           // Partial coordinates
           fc.constant({
-            path: '/admin/submissions/test-id/statuses',
+            path: '/admin/submissions/550e8400-e29b-41d4-a716-446655440003/statuses',
             method: 'POST' as const,
             options: {
-              pathParameters: { id: 'test-id' },
+              pathParameters: { id: '550e8400-e29b-41d4-a716-446655440003' },
               body: { status: 'approved', display_lat: 10 },
             },
           }),
           // Out-of-bounds coordinates
           fc.constant({
-            path: '/admin/submissions/test-id/statuses',
+            path: '/admin/submissions/550e8400-e29b-41d4-a716-446655440003/statuses',
             method: 'POST' as const,
             options: {
-              pathParameters: { id: 'test-id' },
+              pathParameters: { id: '550e8400-e29b-41d4-a716-446655440003' },
               body: { status: 'approved', display_lat: 999, display_lng: 999 },
             },
           }),
           // Invalid reason
           fc.string({ minLength: 1 }).filter((s) => !validReasons.includes(s)).map((s) => ({
-            path: '/admin/submissions/test-id/statuses',
+            path: '/admin/submissions/550e8400-e29b-41d4-a716-446655440003/statuses',
             method: 'POST' as const,
             options: {
-              pathParameters: { id: 'test-id' },
+              pathParameters: { id: '550e8400-e29b-41d4-a716-446655440003' },
               body: { status: 'denied', reason: s },
             },
           })),
           // Missing notes for reason=other
           fc.constant({
-            path: '/admin/submissions/test-id/statuses',
+            path: '/admin/submissions/550e8400-e29b-41d4-a716-446655440003/statuses',
             method: 'POST' as const,
             options: {
-              pathParameters: { id: 'test-id' },
+              pathParameters: { id: '550e8400-e29b-41d4-a716-446655440003' },
               body: { status: 'denied', reason: 'other' },
             },
           })

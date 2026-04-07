@@ -84,7 +84,7 @@ const ADMIN_USER_ROW = { id: 'admin-uuid-1' };
 
 function makeSubmissionRow(overrides: Record<string, any> = {}) {
   return {
-    id: 'sub-uuid-1',
+    id: '550e8400-e29b-41d4-a716-446655440001',
     contributor_name: 'Alice',
     story_text: 'Found okra here',
     raw_location_text: '123 Main St',
@@ -93,6 +93,7 @@ function makeSubmissionRow(overrides: Record<string, any> = {}) {
     display_lng: -118.24,
     status: 'pending_review',
     created_at: new Date('2024-01-15T10:00:00Z'),
+    created_at_raw: '2024-01-15 10:00:00.000000+00',
     reviewed_by: null,
     reviewed_at: null,
     review_notes: null,
@@ -236,7 +237,7 @@ describe('GET /admin/submissions', () => {
   });
 
   it('returns response with all required fields', async () => {
-    setupListMocks([makeSubmissionRow()], [{ submission_id: 'sub-uuid-1', original_s3_key: 'photos/abc.jpg' }]);
+    setupListMocks([makeSubmissionRow()], [{ submission_id: '550e8400-e29b-41d4-a716-446655440001', original_s3_key: 'photos/abc.jpg' }]);
     const { body } = parseRes(await handler(makeRestApiEvent('/admin/submissions')));
     expect(body.data).toHaveLength(1);
     const item = body.data[0];
@@ -259,10 +260,21 @@ describe('GET /admin/submissions', () => {
 // ═══════════════════════════════════════════════════════════════════════════
 
 describe('POST /admin/submissions/:id/statuses — status field validation', () => {
+  it('returns INVALID_ID for non-UUID submission ID', async () => {
+    const res = await handler(
+      makeRestApiEvent('/admin/submissions/not-a-uuid/statuses', 'POST', {
+        pathParameters: { id: 'not-a-uuid' }, body: { status: 'approved' },
+      })
+    );
+    const { statusCode, body } = parseRes(res);
+    expect(statusCode).toBe(400);
+    expect(body.error.code).toBe('INVALID_ID');
+  });
+
   it('returns INVALID_ACTION for missing status field', async () => {
     const res = await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: {},
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: {},
       })
     );
     const { statusCode, body } = parseRes(res);
@@ -272,8 +284,8 @@ describe('POST /admin/submissions/:id/statuses — status field validation', () 
 
   it('returns INVALID_ACTION for invalid status value', async () => {
     const res = await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'pending_review' },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'pending_review' },
       })
     );
     expect(parseRes(res).body.error.code).toBe('INVALID_ACTION');
@@ -281,8 +293,8 @@ describe('POST /admin/submissions/:id/statuses — status field validation', () 
 
   it('returns INVALID_ACTION for empty string status', async () => {
     const res = await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: '' },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: '' },
       })
     );
     expect(parseRes(res).body.error.code).toBe('INVALID_ACTION');
@@ -297,7 +309,7 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
   function setupApproveMocks(overrides: Record<string, any> = {}) {
     const approvedRow = makeApprovedRow(overrides);
     queryResponses = {
-      'SELECT id, status FROM submissions': { rows: [{ id: 'sub-uuid-1', status: 'pending_review' }] },
+      'SELECT id, status FROM submissions': { rows: [{ id: '550e8400-e29b-41d4-a716-446655440001', status: 'pending_review' }] },
       'COUNT(*)': { rows: [{ count: 2 }] },
       'admin_users': { rows: [ADMIN_USER_ROW] },
       'BEGIN': { rows: [] },
@@ -310,19 +322,19 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
   it('returns 200 with updated submission on successful approval', async () => {
     setupApproveMocks();
     const { statusCode, body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'approved' },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'approved' },
       })
     ));
     expect(statusCode).toBe(200);
-    expect(body.id).toBe('sub-uuid-1');
+    expect(body.id).toBe('550e8400-e29b-41d4-a716-446655440001');
     expect(body.status).toBe('approved');
   });
 
   it('returns INVALID_COORDINATES for partial coordinates (lat only)', async () => {
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'approved', display_lat: 34.05 },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'approved', display_lat: 34.05 },
       })
     ));
     expect(body.error.code).toBe('INVALID_COORDINATES');
@@ -330,8 +342,8 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
 
   it('returns INVALID_COORDINATES for partial coordinates (lng only)', async () => {
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'approved', display_lng: -118.24 },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'approved', display_lng: -118.24 },
       })
     ));
     expect(body.error.code).toBe('INVALID_COORDINATES');
@@ -339,8 +351,8 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
 
   it('returns INVALID_COORDINATES for out-of-bounds lat', async () => {
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'approved', display_lat: 91, display_lng: 0 },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'approved', display_lat: 91, display_lng: 0 },
       })
     ));
     expect(body.error.code).toBe('INVALID_COORDINATES');
@@ -348,8 +360,8 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
 
   it('returns INVALID_COORDINATES for out-of-bounds lng', async () => {
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'approved', display_lat: 0, display_lng: -181 },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'approved', display_lat: 0, display_lng: -181 },
       })
     ));
     expect(body.error.code).toBe('INVALID_COORDINATES');
@@ -357,12 +369,12 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
 
   it('returns MISSING_PHOTOS when submission has zero photos', async () => {
     queryResponses = {
-      'SELECT id, status FROM submissions': { rows: [{ id: 'sub-uuid-1', status: 'pending_review' }] },
+      'SELECT id, status FROM submissions': { rows: [{ id: '550e8400-e29b-41d4-a716-446655440001', status: 'pending_review' }] },
       'COUNT(*)': { rows: [{ count: 0 }] },
     };
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'approved' },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'approved' },
       })
     ));
     expect(body.error.code).toBe('MISSING_PHOTOS');
@@ -373,8 +385,8 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
       'SELECT id, status FROM submissions': { rows: [] },
     };
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'approved' },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'approved' },
       })
     ));
     expect(body.error.code).toBe('NOT_FOUND');
@@ -382,11 +394,11 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
 
   it('returns INVALID_STATE for already-reviewed submission', async () => {
     queryResponses = {
-      'SELECT id, status FROM submissions': { rows: [{ id: 'sub-uuid-1', status: 'approved' }] },
+      'SELECT id, status FROM submissions': { rows: [{ id: '550e8400-e29b-41d4-a716-446655440001', status: 'approved' }] },
     };
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'approved' },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'approved' },
       })
     ));
     expect(body.error.code).toBe('INVALID_STATE');
@@ -395,8 +407,8 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
   it('updates coordinates when pin adjustment is provided', async () => {
     setupApproveMocks({ display_lat: 40.0, display_lng: -74.0 });
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'approved', display_lat: 40.0, display_lng: -74.0 },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'approved', display_lat: 40.0, display_lng: -74.0 },
       })
     ));
     expect(body.display_lat).toBe(40.0);
@@ -410,8 +422,8 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
   it('stores review_notes correctly', async () => {
     setupApproveMocks({ review_notes: 'Looks good!' });
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'approved', review_notes: 'Looks good!' },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'approved', review_notes: 'Looks good!' },
       })
     ));
     expect(body.review_notes).toBe('Looks good!');
@@ -420,8 +432,8 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
   it('includes SUSPICIOUS_COORDINATES warning when final coords are (0,0)', async () => {
     setupApproveMocks({ display_lat: 0, display_lng: 0 });
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'approved', display_lat: 0, display_lng: 0 },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'approved', display_lat: 0, display_lng: 0 },
       })
     ));
     expect(body.warnings).toHaveLength(1);
@@ -448,8 +460,8 @@ describe('POST /admin/submissions/:id/statuses — denial', () => {
   it('returns 200 with updated submission on successful denial', async () => {
     setupDenyMocks();
     const { statusCode, body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'denied', reason: 'spam' },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied', reason: 'spam' },
       })
     ));
     expect(statusCode).toBe(200);
@@ -458,8 +470,8 @@ describe('POST /admin/submissions/:id/statuses — denial', () => {
 
   it('returns INVALID_REASON for missing reason', async () => {
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'denied' },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied' },
       })
     ));
     expect(body.error.code).toBe('INVALID_REASON');
@@ -467,8 +479,8 @@ describe('POST /admin/submissions/:id/statuses — denial', () => {
 
   it('returns INVALID_REASON for invalid reason value', async () => {
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'denied', reason: 'not_valid' },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied', reason: 'not_valid' },
       })
     ));
     expect(body.error.code).toBe('INVALID_REASON');
@@ -476,8 +488,8 @@ describe('POST /admin/submissions/:id/statuses — denial', () => {
 
   it('returns MISSING_NOTES when reason=other and notes empty', async () => {
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'denied', reason: 'other', review_notes: '' },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied', reason: 'other', review_notes: '' },
       })
     ));
     expect(body.error.code).toBe('MISSING_NOTES');
@@ -485,8 +497,8 @@ describe('POST /admin/submissions/:id/statuses — denial', () => {
 
   it('returns MISSING_NOTES when reason=other and notes missing', async () => {
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'denied', reason: 'other' },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied', reason: 'other' },
       })
     ));
     expect(body.error.code).toBe('MISSING_NOTES');
@@ -501,8 +513,8 @@ describe('POST /admin/submissions/:id/statuses — denial', () => {
       'ROLLBACK': { rows: [] },
     };
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'denied', reason: 'spam' },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied', reason: 'spam' },
       })
     ));
     expect(body.error.code).toBe('NOT_FOUND');
@@ -513,12 +525,12 @@ describe('POST /admin/submissions/:id/statuses — denial', () => {
       'admin_users': { rows: [ADMIN_USER_ROW] },
       'BEGIN': { rows: [] },
       'UPDATE submissions': { rows: [], rowCount: 0 },
-      'SELECT id, status FROM submissions': { rows: [{ id: 'sub-uuid-1', status: 'denied' }] },
+      'SELECT id, status FROM submissions': { rows: [{ id: '550e8400-e29b-41d4-a716-446655440001', status: 'denied' }] },
       'ROLLBACK': { rows: [] },
     };
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'denied', reason: 'spam' },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied', reason: 'spam' },
       })
     ));
     expect(body.error.code).toBe('INVALID_STATE');
@@ -527,8 +539,8 @@ describe('POST /admin/submissions/:id/statuses — denial', () => {
   it('stores review_notes for spam reason', async () => {
     setupDenyMocks({ review_notes: 'Obvious spam' });
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'denied', reason: 'spam', review_notes: 'Obvious spam' },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied', reason: 'spam', review_notes: 'Obvious spam' },
       })
     ));
     expect(body.review_notes).toBe('Obvious spam');
@@ -537,8 +549,8 @@ describe('POST /admin/submissions/:id/statuses — denial', () => {
   it('stores review_notes for invalid_location reason', async () => {
     setupDenyMocks({ review_notes: 'Wrong city' });
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'denied', reason: 'invalid_location', review_notes: 'Wrong city' },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied', reason: 'invalid_location', review_notes: 'Wrong city' },
       })
     ));
     expect(body.review_notes).toBe('Wrong city');
@@ -547,8 +559,8 @@ describe('POST /admin/submissions/:id/statuses — denial', () => {
   it('stores review_notes for other reason', async () => {
     setupDenyMocks({ review_notes: 'Custom reason details' });
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'denied', reason: 'other', review_notes: 'Custom reason details' },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied', reason: 'other', review_notes: 'Custom reason details' },
       })
     ));
     expect(body.review_notes).toBe('Custom reason details');
@@ -574,8 +586,8 @@ describe('POST /admin/submissions/:id/statuses — denial EventBridge publish', 
   it('publishes EventBridge event after successful denial', async () => {
     setupDenyMocks();
     const { statusCode, body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'denied', reason: 'spam' },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied', reason: 'spam' },
       })
     ));
     expect(statusCode).toBe(200);
@@ -586,7 +598,7 @@ describe('POST /admin/submissions/:id/statuses — denial EventBridge publish', 
     expect(command._params.Entries).toHaveLength(1);
     expect(command._params.Entries[0].Source).toBe('okra-project');
     expect(command._params.Entries[0].DetailType).toBe('SubmissionDenied');
-    expect(JSON.parse(command._params.Entries[0].Detail)).toEqual({ submissionId: 'sub-uuid-1' });
+    expect(JSON.parse(command._params.Entries[0].Detail)).toEqual({ submissionId: '550e8400-e29b-41d4-a716-446655440001' });
   });
 
   it('EventBridge publish failure does not affect denial response', async () => {
@@ -594,13 +606,13 @@ describe('POST /admin/submissions/:id/statuses — denial EventBridge publish', 
     mockEventBridgeSend.mockRejectedValueOnce(new Error('EventBridge unavailable'));
 
     const { statusCode, body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'denied', reason: 'spam' },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied', reason: 'spam' },
       })
     ));
     expect(statusCode).toBe(200);
     expect(body.status).toBe('denied');
-    expect(body.id).toBe('sub-uuid-1');
+    expect(body.id).toBe('550e8400-e29b-41d4-a716-446655440001');
   });
 });
 
@@ -614,17 +626,17 @@ describe('Error response consistency', () => {
       makeRestApiEvent('/admin/submissions', 'GET', { queryStringParameters: { status: 'bad' } }),
       makeRestApiEvent('/admin/submissions', 'GET', { queryStringParameters: { limit: '-1' } }),
       makeRestApiEvent('/admin/submissions', 'GET', { queryStringParameters: { cursor: '!!!invalid!!!' } }),
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: {},
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: {},
       }),
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'approved', display_lat: 10 },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'approved', display_lat: 10 },
       }),
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'denied' },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied' },
       }),
-      makeRestApiEvent('/admin/submissions/sub-uuid-1/statuses', 'POST', {
-        pathParameters: { id: 'sub-uuid-1' }, body: { status: 'denied', reason: 'other' },
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied', reason: 'other' },
       }),
     ];
 

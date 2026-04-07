@@ -2,6 +2,7 @@ import { S3Client, GetObjectCommand } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { createDbClient } from '../../scripts/db-client.mjs';
+import { isUuid } from '../services/photos.mjs';
 
 const s3 = new S3Client({});
 const eventBridge = new EventBridgeClient({});
@@ -14,8 +15,9 @@ export function errorResponse(statusCode, code, message) {
 }
 
 export function encodeCursor(row) {
+  // Use created_at_raw (text) to preserve full PostgreSQL microsecond precision
   return Buffer.from(
-    JSON.stringify({ created_at: row.created_at.toISOString(), id: row.id })
+    JSON.stringify({ created_at: row.created_at_raw, id: row.id })
   ).toString('base64url');
 }
 
@@ -24,7 +26,8 @@ export function decodeCursor(token) {
     const parsed = JSON.parse(Buffer.from(token, 'base64url').toString());
     if (!parsed.created_at || !parsed.id) return null;
 
-    // Validate created_at is a valid ISO 8601 timestamp
+    // Validate created_at is a parseable timestamp string
+    if (typeof parsed.created_at !== 'string') return null;
     const ts = new Date(parsed.created_at);
     if (isNaN(ts.getTime())) return null;
 
@@ -79,9 +82,10 @@ export function registerAdminRoutes(app) {
       if (cursor) {
         queryText = `
           SELECT s.id, s.contributor_name, s.story_text, s.raw_location_text,
-                 s.privacy_mode, s.display_lat, s.display_lng, s.status, s.created_at
+                 s.privacy_mode, s.display_lat, s.display_lng, s.status, s.created_at,
+                 s.created_at::text AS created_at_raw
           FROM submissions s
-          WHERE s.status = $1 AND (s.created_at, s.id) > ($2, $3)
+          WHERE s.status = $1 AND (s.created_at, s.id) > ($2::timestamptz, $3)
           ORDER BY s.created_at ASC, s.id ASC
           LIMIT $4
         `;
@@ -89,7 +93,8 @@ export function registerAdminRoutes(app) {
       } else {
         queryText = `
           SELECT s.id, s.contributor_name, s.story_text, s.raw_location_text,
-                 s.privacy_mode, s.display_lat, s.display_lng, s.status, s.created_at
+                 s.privacy_mode, s.display_lat, s.display_lng, s.status, s.created_at,
+                 s.created_at::text AS created_at_raw
           FROM submissions s
           WHERE s.status = $1
           ORDER BY s.created_at ASC, s.id ASC
@@ -162,6 +167,11 @@ export function registerAdminRoutes(app) {
   // ─── POST /admin/submissions/:id/statuses ─────────────────────────────
   app.post('/admin/submissions/:id/statuses', async (ctx) => {
     const submissionId = ctx.params.id;
+
+    if (!isUuid(submissionId)) {
+      return errorResponse(400, 'INVALID_ID', 'Submission ID must be a valid UUID');
+    }
+
     const body = JSON.parse(ctx.event.body || '{}');
     const { status, review_notes, display_lat, display_lng, reason } = body;
 
