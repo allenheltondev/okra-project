@@ -13,6 +13,7 @@
     "lint": "npm run --workspaces lint",
     "test": "npm run --workspaces test",
     "build": "npm run --workspaces build",
-    "typecheck": "npm run --workspaces typecheck"
+    "typecheck": "npm run --workspaces typecheck",
+    "test:integration": "npm run --workspace okra-backend test:integration"
   }
 }

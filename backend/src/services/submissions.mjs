@@ -95,7 +95,10 @@ export async function insertPendingSubmissionWithPhotos(client, payload) {
     }
 
     await client.query('commit');
-    return created;
+    return {
+      ...created,
+      claimedPhotoIds: payload.photoIds
+    };
   } catch (error) {
     await client.query('rollback');
     throw error;
