@@ -64,6 +64,16 @@ Resources:
     Properties:
       TracingEnabled: true
       StageName: admin
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+      Auth:
+        DefaultAuthorizer: AdminTokenAuthorizer
+        AddDefaultAuthorizerToCorsPreflight: false
+        Authorizers:
+          AdminTokenAuthorizer:
+            FunctionArn: !GetAtt AdminAuthorizerFunction.Arn
 
   FrontendBucket:
     Type: AWS::S3::Bucket
@@ -279,6 +289,19 @@ Resources:
             Path: /
             Method: ANY
 
+  AdminAuthorizerFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        <<: *esbuild-properties
+        EntryPoints:
+          - src/handlers/admin-authorizer.mjs
+    Properties:
+      CodeUri: ./
+      Handler: src/handlers/admin-authorizer.handler
+      Timeout: 5
+      MemorySize: 256
 
   AdminApiFunction:
     Type: AWS::Serverless::Function
@@ -291,6 +314,17 @@ Resources:
     Properties:
       CodeUri: ./
       Handler: src/handlers/admin-api.handler
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource: !Sub '${MediaBucket.Arn}/*'
+            - Effect: Allow
+              Action:
+                - events:PutEvents
+              Resource: !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/default'
       Events:
         AdminApiProxy:
           Type: Api
@@ -304,10 +338,42 @@ Resources:
             RestApiId: !Ref AdminApiGateway
             Path: /
             Method: ANY
+
+  DeniedPhotoCleanupFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        <<: *esbuild-properties
+        EntryPoints:
+          - src/handlers/denied-photo-cleanup.mjs
+    Properties:
+      CodeUri: ./
+      Handler: src/handlers/denied-photo-cleanup.handler
+      Timeout: 60
+      Events:
+        SubmissionDeniedEvent:
+          Type: EventBridgeRule
+          Properties:
+            Pattern:
+              source:
+                - "okra-project"
+              detail-type:
+                - "SubmissionDenied"
+      Policies:
+        - S3CrudPolicy:
+            BucketName: !Ref MediaBucket
+      Environment:
+        Variables:
+          DATABASE_URL: !Ref DatabaseUrl
+
 Outputs:
   HttpApiUrl:
     Description: Base URL for the HTTP API
     Value: !Sub 'https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com'
+  AdminApiUrl:
+    Description: Base URL for the Admin API
+    Value: !Sub 'https://${AdminApiGateway}.execute-api.${AWS::Region}.amazonaws.com'
   FrontendBucketName:
     Description: S3 bucket that stores frontend static assets
     Value: !Ref FrontendBucket
@@ -329,8 +395,3 @@ Outputs:
   SharedUserPoolClientIdInUse:
     Description: Passed-through shared User Pool Client ID
     Value: !Ref SharedUserPoolClientId
-
-
-
-
-

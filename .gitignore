@@ -23,3 +23,6 @@ samconfig.toml
 # OS
 .DS_Store
 Thumbs.db
+
+#kiro
+.kiro/

@@ -2,7 +2,20 @@ import { randomUUID } from 'node:crypto';
 import { PutObjectCommand, S3Client } from '@aws-sdk/client-s3';
 import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 
-const VALID_CONTENT_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
+export const photoCreateSchema = {
+  type: 'object',
+  required: ['contentType'],
+  properties: {
+    contentType: {
+      type: 'string',
+      enum: ['image/jpeg', 'image/png', 'image/webp']
+    },
+    fileName: {
+      type: 'string'
+    }
+  },
+  additionalProperties: false
+};
 
 const PHOTO_RATE_LIMIT_WINDOW_SECONDS = Number(
   process.env.PHOTO_RATE_LIMIT_WINDOW_SECONDS ?? 60 * 60
@@ -19,29 +32,6 @@ function getMediaBucketName() {
 
 function getAwsRegion() {
   return process.env.AWS_REGION ?? process.env.AWS_DEFAULT_REGION ?? 'us-east-1';
-}
-
-export function validatePhotoCreatePayload(payload) {
-  const issues = [];
-
-  if (!payload || typeof payload !== 'object') {
-    return { valid: false, issues: ['Body must be a JSON object'] };
-  }
-
-  if (!payload.contentType || typeof payload.contentType !== 'string') {
-    issues.push('contentType is required');
-  } else if (!VALID_CONTENT_TYPES.has(payload.contentType)) {
-    issues.push('contentType must be one of: image/jpeg, image/png, image/webp');
-  }
-
-  if (payload.fileName && typeof payload.fileName !== 'string') {
-    issues.push('fileName must be a string when provided');
-  }
-
-  return {
-    valid: issues.length === 0,
-    issues
-  };
 }
 
 export function isUuid(value) {

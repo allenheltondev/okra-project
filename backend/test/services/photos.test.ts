@@ -1,22 +1,18 @@
-import { isUuid, validatePhotoCreatePayload } from '../../src/services/photos.mjs';
+import { validate } from '@aws-lambda-powertools/validation';
+import { SchemaValidationError } from '@aws-lambda-powertools/validation/errors';
+import { isUuid, photoCreateSchema } from '../../src/services/photos.mjs';
 
 describe('photo create validation', () => {
   it('accepts supported contentType', () => {
-    const result = validatePhotoCreatePayload({
-      contentType: 'image/jpeg',
-      fileName: 'okra.jpg'
-    });
-
-    expect(result.valid).toBe(true);
+    expect(() =>
+      validate({ payload: { contentType: 'image/jpeg', fileName: 'okra.jpg' }, schema: photoCreateSchema })
+    ).not.toThrow();
   });
 
   it('rejects unsupported contentType', () => {
-    const result = validatePhotoCreatePayload({
-      contentType: 'application/pdf'
-    });
-
-    expect(result.valid).toBe(false);
-    expect(result.issues).toContain('contentType must be one of: image/jpeg, image/png, image/webp');
+    expect(() =>
+      validate({ payload: { contentType: 'application/pdf' }, schema: photoCreateSchema })
+    ).toThrow(SchemaValidationError);
   });
 
   it('validates uuid helper', () => {
