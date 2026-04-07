@@ -29,6 +29,7 @@ Globals:
         SHARED_USER_POOL_CLIENT_ID: !Ref SharedUserPoolClientId
         DATABASE_URL: !Ref DatabaseUrl
         MEDIA_BUCKET_NAME: !Ref MediaBucket
+        PHOTO_PROCESSING_QUEUE_URL: !Ref PhotoProcessingQueue
         PHOTO_RATE_LIMIT_MAX_REQUESTS: '20'
         PHOTO_RATE_LIMIT_WINDOW_SECONDS: '3600'
   Api:
@@ -50,7 +51,6 @@ Metadata:
     Banner:
       - js=import { createRequire } from 'module'; const require = createRequire(import.meta.url);
     External:
-      - '@aws-sdk/*'
       - 'pg'
 
 Resources:
@@ -203,6 +203,63 @@ Resources:
               Bool:
                 aws:SecureTransport: false
 
+  PhotoProcessingDlq:
+    Type: AWS::SQS::Queue
+
+  PhotoProcessingQueue:
+    Type: AWS::SQS::Queue
+    Properties:
+      VisibilityTimeout: 120
+      MessageRetentionPeriod: 1209600
+      RedrivePolicy:
+        deadLetterTargetArn: !GetAtt PhotoProcessingDlq.Arn
+        maxReceiveCount: 3
+
+  PhotoProcessingQueuePolicy:
+    Type: AWS::SQS::QueuePolicy
+    Properties:
+      Queues:
+        - !Ref PhotoProcessingQueue
+      PolicyDocument:
+        Version: '2012-10-17'
+        Statement:
+          - Effect: Deny
+            Principal: '*'
+            Action: 'sqs:*'
+            Resource: !GetAtt PhotoProcessingQueue.Arn
+            Condition:
+              Bool:
+                aws:SecureTransport: false
+
+  PhotoProcessorFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        <<: *esbuild-properties
+        EntryPoints:
+          - src/handlers/photo-processor.mjs
+    Properties:
+      CodeUri: ./
+      Handler: src/handlers/photo-processor.handler
+      Timeout: 60
+      MemorySize: 1024
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+              Resource:
+                - !Sub '${MediaBucket.Arn}/*'
+      Events:
+        PhotoQueueEvent:
+          Type: SQS
+          Properties:
+            Queue: !GetAtt PhotoProcessingQueue.Arn
+            BatchSize: 5
+
   ApiFunction:
     Type: AWS::Serverless::Function
     Metadata:
@@ -214,6 +271,14 @@ Resources:
     Properties:
       CodeUri: ./
       Handler: src/handlers/api.handler
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - sqs:SendMessage
+                - sqs:SendMessageBatch
+              Resource: !GetAtt PhotoProcessingQueue.Arn
       Events:
         ApiProxy:
           Type: Api
@@ -244,6 +309,9 @@ Outputs:
   MediaBucketName:
     Description: S3 bucket for uploaded/processed images
     Value: !Ref MediaBucket
+  PhotoProcessingQueueUrl:
+    Description: Queue URL for claimed-photo processing jobs
+    Value: !Ref PhotoProcessingQueue
   SharedUserPoolIdInUse:
     Description: Passed-through shared User Pool ID
     Value: !Ref SharedUserPoolId

@@ -5,6 +5,7 @@ import {
   enforcePhotoRateLimit,
   validatePhotoCreatePayload
 } from '../services/photos.mjs';
+import { enqueuePhotoProcessing } from '../services/photo-processing-queue.mjs';
 import { insertPendingSubmissionWithPhotos, validateSubmissionPayload } from '../services/submissions.mjs';
 
 const app = new Router();
@@ -112,6 +113,9 @@ app.post('/submissions', async ({ req }) => {
 
   try {
     const created = await insertPendingSubmissionWithPhotos(client, payload);
+
+    await enqueuePhotoProcessing(created.claimedPhotoIds);
+
     return {
       statusCode: 201,
       body: {
@@ -127,6 +131,16 @@ app.post('/submissions', async ({ req }) => {
         body: {
           error: 'InvalidPhotoIds',
           message: error.message
+        }
+      };
+    }
+
+    if ((error?.message ?? '').includes('Failed to enqueue')) {
+      return {
+        statusCode: 502,
+        body: {
+          error: 'PhotoProcessingQueueError',
+          message: 'Submission saved but photo processing queueing failed'
         }
       };
     }
