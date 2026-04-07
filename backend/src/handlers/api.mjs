@@ -1,13 +1,14 @@
 import { Router } from '@aws-lambda-powertools/event-handler/http';
+import { validate } from '@aws-lambda-powertools/validation';
+import { SchemaValidationError } from '@aws-lambda-powertools/validation/errors';
 import { createDbClient } from '../../scripts/db-client.mjs';
-import { registerAdminRoutes } from './admin-routes.mjs';
 import {
   createPhotoUploadIntent,
   enforcePhotoRateLimit,
-  validatePhotoCreatePayload
+  photoCreateSchema
 } from '../services/photos.mjs';
 import { enqueuePhotoProcessing } from '../services/photo-processing-queue.mjs';
-import { insertPendingSubmissionWithPhotos, validateSubmissionPayload } from '../services/submissions.mjs';
+import { insertPendingSubmissionWithPhotos, submissionSchema } from '../services/submissions.mjs';
 
 const app = new Router();
 
@@ -46,19 +47,23 @@ app.get('/version', () => {
 
 app.post('/photos', async ({ req, event }) => {
   const payload = await req.json();
-  const validation = validatePhotoCreatePayload(payload);
 
-  if (!validation.valid) {
-    return {
-      statusCode: 422,
-      body: {
-        error: 'RequestValidationError',
-        message: 'Validation failed for request',
-        details: {
-          issues: validation.issues
+  try {
+    validate({ payload, schema: photoCreateSchema });
+  } catch (error) {
+    if (error instanceof SchemaValidationError) {
+      return {
+        statusCode: 422,
+        body: {
+          error: 'RequestValidationError',
+          message: 'Validation failed for request',
+          details: {
+            issues: error.errors?.map((e) => e.message) ?? [error.message]
+          }
         }
-      }
-    };
+      };
+    }
+    throw error;
   }
 
   const sourceIp = event?.requestContext?.identity?.sourceIp ?? 'unknown';
@@ -94,19 +99,23 @@ app.post('/photos', async ({ req, event }) => {
 
 app.post('/submissions', async ({ req }) => {
   const payload = await req.json();
-  const validation = validateSubmissionPayload(payload);
 
-  if (!validation.valid) {
-    return {
-      statusCode: 422,
-      body: {
-        error: 'RequestValidationError',
-        message: 'Validation failed for request',
-        details: {
-          issues: validation.issues
+  try {
+    validate({ payload, schema: submissionSchema });
+  } catch (error) {
+    if (error instanceof SchemaValidationError) {
+      return {
+        statusCode: 422,
+        body: {
+          error: 'RequestValidationError',
+          message: 'Validation failed for request',
+          details: {
+            issues: error.errors?.map((e) => e.message) ?? [error.message]
+          }
         }
-      }
-    };
+      };
+    }
+    throw error;
   }
 
   const client = await createDbClient();
@@ -152,7 +161,6 @@ app.post('/submissions', async ({ req }) => {
   }
 });
 
-registerAdminRoutes(app);
 
 app.notFound(() => {
   return new Response(

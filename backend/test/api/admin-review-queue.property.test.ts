@@ -39,7 +39,7 @@ vi.mock('@aws-sdk/client-eventbridge', () => ({
   PutEventsCommand: vi.fn((params: any) => params),
 }));
 
-import { handler } from '../../src/handlers/api.mjs';
+import { handler } from '../../src/handlers/admin-api.mjs';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
 

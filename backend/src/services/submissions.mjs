@@ -1,48 +1,29 @@
-import { isUuid } from './photos.mjs';
-
 export const VALID_PRIVACY_MODES = new Set(['exact', 'nearby', 'neighborhood', 'city']);
 
-export function validateSubmissionPayload(payload) {
-  const issues = [];
+const UUID_PATTERN = '^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$';
 
-  if (!payload || typeof payload !== 'object') {
-    return { valid: false, issues: ['Body must be a JSON object'] };
-  }
-
-  if (!payload.rawLocationText || typeof payload.rawLocationText !== 'string') {
-    issues.push('rawLocationText is required');
-  }
-
-  if (typeof payload.displayLat !== 'number' || Number.isNaN(payload.displayLat)) {
-    issues.push('displayLat must be a valid number');
-  } else if (payload.displayLat < -90 || payload.displayLat > 90) {
-    issues.push('displayLat must be between -90 and 90');
-  }
-
-  if (typeof payload.displayLng !== 'number' || Number.isNaN(payload.displayLng)) {
-    issues.push('displayLng must be a valid number');
-  } else if (payload.displayLng < -180 || payload.displayLng > 180) {
-    issues.push('displayLng must be between -180 and 180');
-  }
-
-  if (payload.privacyMode && !VALID_PRIVACY_MODES.has(payload.privacyMode)) {
-    issues.push('privacyMode must be one of: exact, nearby, neighborhood, city');
-  }
-
-  if (!Array.isArray(payload.photoIds) || payload.photoIds.length === 0) {
-    issues.push('photoIds must contain at least one photoId');
-  } else {
-    const invalid = payload.photoIds.some((id) => typeof id !== 'string' || !isUuid(id));
-    if (invalid) {
-      issues.push('photoIds must be valid UUID strings');
+export const submissionSchema = {
+  type: 'object',
+  required: ['rawLocationText', 'displayLat', 'displayLng', 'photoIds'],
+  properties: {
+    contributorName: { type: 'string' },
+    contributorEmail: { type: 'string' },
+    storyText: { type: 'string' },
+    rawLocationText: { type: 'string' },
+    privacyMode: {
+      type: 'string',
+      enum: ['exact', 'nearby', 'neighborhood', 'city']
+    },
+    displayLat: { type: 'number', minimum: -90, maximum: 90 },
+    displayLng: { type: 'number', minimum: -180, maximum: 180 },
+    photoIds: {
+      type: 'array',
+      minItems: 1,
+      items: { type: 'string', pattern: UUID_PATTERN }
     }
-  }
-
-  return {
-    valid: issues.length === 0,
-    issues
-  };
-}
+  },
+  additionalProperties: false
+};
 
 export async function insertPendingSubmissionWithPhotos(client, payload) {
   await client.query('begin');

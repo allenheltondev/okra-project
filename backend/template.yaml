@@ -64,6 +64,10 @@ Resources:
     Properties:
       TracingEnabled: true
       StageName: admin
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
 
   FrontendBucket:
     Type: AWS::S3::Bucket
@@ -290,6 +294,17 @@ Resources:
     Properties:
       CodeUri: ./
       Handler: src/handlers/admin-api.handler
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+              Resource: !Sub '${MediaBucket.Arn}/*'
+            - Effect: Allow
+              Action:
+                - events:PutEvents
+              Resource: !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/default'
       Events:
         AdminApiProxy:
           Type: Api
@@ -336,6 +351,9 @@ Outputs:
   HttpApiUrl:
     Description: Base URL for the HTTP API
     Value: !Sub 'https://${ApiGateway}.execute-api.${AWS::Region}.amazonaws.com'
+  AdminApiUrl:
+    Description: Base URL for the Admin API
+    Value: !Sub 'https://${AdminApiGateway}.execute-api.${AWS::Region}.amazonaws.com'
   FrontendBucketName:
     Description: S3 bucket that stores frontend static assets
     Value: !Ref FrontendBucket

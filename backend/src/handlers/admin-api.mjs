@@ -1,5 +1,6 @@
 import { Router } from '@aws-lambda-powertools/event-handler/http';
 import { requireAdminAccess } from '../services/auth.mjs';
+import { registerAdminRoutes } from './admin-routes.mjs';
 
 const app = new Router();
 
@@ -21,6 +22,8 @@ app.get('/health', async ({ event }) => {
     }
   };
 });
+
+registerAdminRoutes(app);
 
 app.notFound(() => {
   return new Response(
