@@ -76,11 +76,40 @@ jobs:
           export STACK_NAME_PREVIEW="$STACK_NAME"
           sed "s|__DATABASE_URL__|${ESCAPED_DATABASE_URL}|g; s|__STACK_NAME_PREVIEW__|${STACK_NAME_PREVIEW}|g" samconfig.template.toml > samconfig.generated.toml
 
+      - name: Recover preview stack if stuck in ROLLBACK_COMPLETE
+        shell: bash
+        run: |
+          STATUS=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --query "Stacks[0].StackStatus" \
+            --output text 2>/dev/null || true)
+
+          if [ "$STATUS" = "ROLLBACK_COMPLETE" ]; then
+            echo "Preview stack is ROLLBACK_COMPLETE. Deleting before fresh deploy..."
+            aws cloudformation delete-stack --stack-name "$STACK_NAME"
+            aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME"
+          fi
+
       - name: Build and deploy preview infra
         working-directory: backend
         run: |
-          sam build --template-file template.yaml --cached --parallel
+          npm_config_platform=linux npm_config_arch=arm64 sam build --template-file template.yaml --cached --parallel
           sam deploy --config-file samconfig.generated.toml --config-env preview
+
+      - name: Resolve preview API base URL
+        id: api
+        run: |
+          API_ROOT=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --query "Stacks[0].Outputs[?OutputKey=='HttpApiUrl'].OutputValue" \
+            --output text)
+          API_BASE_URL="${API_ROOT%/}/api"
+          echo "api_base_url=$API_BASE_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Run integration tests against preview backend
+        env:
+          API_BASE_URL: ${{ steps.api.outputs.api_base_url }}
+        run: npm run test:integration
 
       - name: Build frontend
         run: npm run --workspace okra-frontend build

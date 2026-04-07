@@ -27,12 +27,13 @@ Globals:
         NODE_OPTIONS: --enable-source-maps
         SHARED_USER_POOL_ID: !Ref SharedUserPoolId
         SHARED_USER_POOL_CLIENT_ID: !Ref SharedUserPoolClientId
+        ADMIN_REQUIRED_GROUP: admin
         DATABASE_URL: !Ref DatabaseUrl
-  Api:
-    Cors:
-      AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
-      AllowHeaders: "'Content-Type,Authorization,Idempotency-Key,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
-      AllowOrigin: "'*'"
+        MEDIA_BUCKET_NAME: !Ref MediaBucket
+        PHOTO_PROCESSING_EVENT_BUS_NAME: default
+        PHOTO_RATE_LIMIT_MAX_REQUESTS: '20'
+        PHOTO_RATE_LIMIT_WINDOW_SECONDS: '3600'
+
 
 Metadata:
   esbuild-properties: &esbuild-properties
@@ -46,9 +47,6 @@ Metadata:
       - index.mjs
     Banner:
       - js=import { createRequire } from 'module'; const require = createRequire(import.meta.url);
-    External:
-      - '@aws-sdk/*'
-      - 'pg'
 
 Resources:
   ApiGateway:
@@ -56,6 +54,16 @@ Resources:
     Properties:
       TracingEnabled: true
       StageName: api
+      Cors:
+        AllowMethods: "'GET,POST,PUT,DELETE,OPTIONS'"
+        AllowHeaders: "'Content-Type,Authorization,Idempotency-Key,X-Amz-Date,X-Api-Key,X-Amz-Security-Token'"
+        AllowOrigin: "'*'"
+
+  AdminApiGateway:
+    Type: AWS::Serverless::Api
+    Properties:
+      TracingEnabled: true
+      StageName: admin
 
   FrontendBucket:
     Type: AWS::S3::Bucket
@@ -200,6 +208,41 @@ Resources:
               Bool:
                 aws:SecureTransport: false
 
+  PhotoProcessorFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        <<: *esbuild-properties
+        EntryPoints:
+          - src/handlers/photo-processor.mjs
+        External:
+          - '@napi-rs/image'
+          - '@napi-rs/image-linux-arm64-gnu'
+    Properties:
+      CodeUri: ./
+      Handler: src/handlers/photo-processor.handler
+      Timeout: 60
+      MemorySize: 1024
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - s3:GetObject
+                - s3:PutObject
+              Resource:
+                - !Sub '${MediaBucket.Arn}/*'
+      Events:
+        PhotoClaimedEvent:
+          Type: EventBridgeRule
+          Properties:
+            Pattern:
+              source:
+                - okra.photos
+              detail-type:
+                - photo.claimed
+
   ApiFunction:
     Type: AWS::Serverless::Function
     Metadata:
@@ -212,8 +255,16 @@ Resources:
       CodeUri: ./
       Handler: src/handlers/api.handler
       Policies:
-        - EventBridgePutEventsPolicy:
-            EventBusName: default
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - events:PutEvents
+              Resource: !Sub 'arn:aws:events:${AWS::Region}:${AWS::AccountId}:event-bus/default'
+            - Effect: Allow
+              Action:
+                - s3:PutObject
+              Resource: !Sub '${MediaBucket.Arn}/temp-photos/*'
       Events:
         ApiProxy:
           Type: Api
@@ -225,6 +276,31 @@ Resources:
           Type: Api
           Properties:
             RestApiId: !Ref ApiGateway
+            Path: /
+            Method: ANY
+
+  AdminApiFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        <<: *esbuild-properties
+        EntryPoints:
+          - src/handlers/admin-api.mjs
+    Properties:
+      CodeUri: ./
+      Handler: src/handlers/admin-api.handler
+      Events:
+        AdminApiProxy:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AdminApiGateway
+            Path: /{proxy+}
+            Method: ANY
+        AdminApiRoot:
+          Type: Api
+          Properties:
+            RestApiId: !Ref AdminApiGateway
             Path: /
             Method: ANY
 
@@ -272,6 +348,9 @@ Outputs:
   MediaBucketName:
     Description: S3 bucket for uploaded/processed images
     Value: !Ref MediaBucket
+  PhotoProcessingEventBusName:
+    Description: EventBridge bus used for claimed-photo processing events
+    Value: default
   SharedUserPoolIdInUse:
     Description: Passed-through shared User Pool ID
     Value: !Ref SharedUserPoolId

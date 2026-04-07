@@ -12,13 +12,16 @@
     "test": "vitest run",
     "typecheck": "node -e \"console.log('backend typecheck: no TypeScript files yet')\"",
     "db:migrate": "node ./scripts/migrate.mjs",
-    "db:seed": "node ./scripts/seed-dev.mjs"
+    "db:seed": "node ./scripts/seed-dev.mjs",
+    "test:integration": "node ./scripts/integration-test.mjs"
   },
   "dependencies": {
     "@aws-lambda-powertools/event-handler": "^2.32.0",
-    "@aws-sdk/client-eventbridge": "^3.750.0",
+    "aws-jwt-verify": "^5.1.1",
+    "@aws-sdk/client-eventbridge": "^3.902.0",
     "@aws-sdk/client-s3": "^3.750.0",
-    "@aws-sdk/s3-request-presigner": "^3.750.0",
+    "@aws-sdk/s3-request-presigner": "^3.902.0",
+    "@napi-rs/image": "^1.12.0",
     "pg": "^8.16.3"
   },
   "devDependencies": {
