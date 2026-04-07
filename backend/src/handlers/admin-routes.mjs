@@ -121,7 +121,7 @@ export function registerAdminRoutes(app) {
         photosBySubmission[photo.submission_id].push(photo.original_s3_key);
       }
 
-      const bucket = process.env.MEDIA_BUCKET;
+      const bucket = process.env.MEDIA_BUCKET_NAME;
       const data = await Promise.all(
         rows.map(async (row) => {
           const keys = photosBySubmission[row.id] || [];

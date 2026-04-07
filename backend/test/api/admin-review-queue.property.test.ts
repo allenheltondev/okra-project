@@ -119,7 +119,7 @@ const arbValidLng = fc.double({ min: -180, max: 180, noNaN: true, noDefaultInfin
 
 beforeEach(() => {
   process.env.DATABASE_URL = 'postgres://localhost:5432/test';
-  process.env.MEDIA_BUCKET = 'test-media-bucket';
+  process.env.MEDIA_BUCKET_NAME = 'test-media-bucket';
   queryResponses = {};
   queryCalls = [];
   vi.clearAllMocks();
@@ -127,7 +127,7 @@ beforeEach(() => {
 
 afterEach(() => {
   delete process.env.DATABASE_URL;
-  delete process.env.MEDIA_BUCKET;
+  delete process.env.MEDIA_BUCKET_NAME;
 });
 
 // ═══════════════════════════════════════════════════════════════════════════

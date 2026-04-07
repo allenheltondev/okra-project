@@ -122,14 +122,14 @@ function makeDeniedRow(overrides: Record<string, any> = {}) {
 
 beforeEach(() => {
   process.env.DATABASE_URL = 'postgres://localhost:5432/test';
-  process.env.MEDIA_BUCKET = 'test-media-bucket';
+  process.env.MEDIA_BUCKET_NAME = 'test-media-bucket';
   queryResponses = {};
   vi.clearAllMocks();
 });
 
 afterEach(() => {
   delete process.env.DATABASE_URL;
-  delete process.env.MEDIA_BUCKET;
+  delete process.env.MEDIA_BUCKET_NAME;
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
