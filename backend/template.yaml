@@ -125,6 +125,44 @@ Resources:
               - ETag
             MaxAge: 300
 
+  MediaOriginAccessControl:
+    Type: AWS::CloudFront::OriginAccessControl
+    Properties:
+      OriginAccessControlConfig:
+        Name: !Sub '${AWS::StackName}-media-oac'
+        OriginAccessControlOriginType: s3
+        SigningBehavior: always
+        SigningProtocol: sigv4
+
+  MediaDistribution:
+    Type: AWS::CloudFront::Distribution
+    Properties:
+      DistributionConfig:
+        Enabled: true
+        HttpVersion: http2
+        PriceClass: PriceClass_100
+        Origins:
+          - Id: MediaS3Origin
+            DomainName: !GetAtt MediaBucket.RegionalDomainName
+            S3OriginConfig: {}
+            OriginAccessControlId: !Ref MediaOriginAccessControl
+        DefaultCacheBehavior:
+          TargetOriginId: MediaS3Origin
+          ViewerProtocolPolicy: redirect-to-https
+          AllowedMethods:
+            - GET
+            - HEAD
+          CachedMethods:
+            - GET
+            - HEAD
+          Compress: true
+          ForwardedValues:
+            QueryString: false
+            Cookies:
+              Forward: none
+        ViewerCertificate:
+          CloudFrontDefaultCertificate: true
+
   FrontendOriginAccessControl:
     Type: AWS::CloudFront::OriginAccessControl
     Properties:
@@ -207,6 +245,16 @@ Resources:
       PolicyDocument:
         Version: '2012-10-17'
         Statement:
+          - Sid: AllowCloudFrontRead
+            Effect: Allow
+            Principal:
+              Service: cloudfront.amazonaws.com
+            Action:
+              - s3:GetObject
+            Resource: !Sub '${MediaBucket.Arn}/*'
+            Condition:
+              StringEquals:
+                AWS:SourceArn: !Sub 'arn:aws:cloudfront::${AWS::AccountId}:distribution/${MediaDistribution}'
           - Sid: DenyInsecureTransport
             Effect: Deny
             Principal: '*'
@@ -264,6 +312,9 @@ Resources:
     Properties:
       CodeUri: ./
       Handler: src/handlers/api.handler
+      Environment:
+        Variables:
+          MEDIA_CDN_DOMAIN: !GetAtt MediaDistribution.DomainName
       Policies:
         - Version: '2012-10-17'
           Statement:
@@ -395,3 +446,6 @@ Outputs:
   SharedUserPoolClientIdInUse:
     Description: Passed-through shared User Pool Client ID
     Value: !Ref SharedUserPoolClientId
+  MediaDistributionDomainName:
+    Description: CloudFront domain for media assets (photos)
+    Value: !GetAtt MediaDistribution.DomainName

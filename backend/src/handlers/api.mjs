@@ -9,8 +9,40 @@ import {
 } from '../services/photos.mjs';
 import { enqueuePhotoProcessing } from '../services/photo-processing-queue.mjs';
 import { insertPendingSubmissionWithPhotos, submissionSchema } from '../services/submissions.mjs';
+import { encodeCursor, decodeCursor, errorResponse } from '../services/pagination.mjs';
+import { fuzzCoordinates } from '../services/privacy-fuzzing.mjs';
 
 const app = new Router();
+
+/**
+ * Validate and parse the `limit` query parameter.
+ * Returns { valid: true, value: number } or { valid: false, response: Response }.
+ */
+export function validateLimit(raw) {
+  if (raw == null) return { valid: true, value: 20 };
+  const trimmed = String(raw).trim();
+  if (!/^[0-9]+$/.test(trimmed)) {
+    return { valid: false, response: errorResponse(400, 'INVALID_LIMIT', 'Limit must be a positive integer') };
+  }
+  const parsed = parseInt(trimmed, 10);
+  if (parsed === 0) {
+    return { valid: false, response: errorResponse(400, 'INVALID_LIMIT', 'Limit must be a positive integer') };
+  }
+  return { valid: true, value: Math.min(parsed, 100) };
+}
+
+/**
+ * Validate and decode the `cursor` query parameter.
+ * Returns { valid: true, value: object|null } or { valid: false, response: Response }.
+ */
+export function validateCursor(raw) {
+  if (raw == null) return { valid: true, value: null };
+  const decoded = decodeCursor(raw);
+  if (!decoded) {
+    return { valid: false, response: errorResponse(400, 'INVALID_CURSOR', 'Invalid or malformed cursor') };
+  }
+  return { valid: true, value: decoded };
+}
 
 app.get('/health', async () => {
   const response = {
@@ -161,6 +193,111 @@ app.post('/submissions', async ({ req }) => {
   }
 });
 
+
+app.get('/okra', async (ctx) => {
+  const limitResult = validateLimit(ctx.event?.queryStringParameters?.limit);
+  if (!limitResult.valid) return limitResult.response;
+  const limit = limitResult.value;
+
+  const cursorResult = validateCursor(ctx.event?.queryStringParameters?.cursor);
+  if (!cursorResult.valid) return cursorResult.response;
+  const cursor = cursorResult.value;
+
+  const cdnDomain = process.env.MEDIA_CDN_DOMAIN;
+  if (!cdnDomain) {
+    console.error(JSON.stringify({
+      level: 'warn',
+      message: 'MEDIA_CDN_DOMAIN not set — photo URLs will be empty',
+      endpoint: 'GET /okra'
+    }));
+  }
+
+  const client = await createDbClient();
+  await client.connect();
+  try {
+    let rows;
+    if (cursor) {
+      const res = await client.query(
+        `SELECT s.id, s.contributor_name, s.story_text, s.privacy_mode,
+                s.display_lat, s.display_lng, s.created_at,
+                s.created_at::text AS created_at_raw
+         FROM submissions s
+         WHERE s.status = 'approved'
+           AND NOT (s.display_lat = 0 AND s.display_lng = 0)
+           AND (s.created_at, s.id) < ($1::timestamptz, $2)
+         ORDER BY s.created_at DESC, s.id DESC
+         LIMIT $3`,
+        [cursor.created_at, cursor.id, limit + 1]
+      );
+      rows = res.rows;
+    } else {
+      const res = await client.query(
+        `SELECT s.id, s.contributor_name, s.story_text, s.privacy_mode,
+                s.display_lat, s.display_lng, s.created_at,
+                s.created_at::text AS created_at_raw
+         FROM submissions s
+         WHERE s.status = 'approved'
+           AND NOT (s.display_lat = 0 AND s.display_lng = 0)
+         ORDER BY s.created_at DESC, s.id DESC
+         LIMIT $1`,
+        [limit + 1]
+      );
+      rows = res.rows;
+    }
+
+    let nextCursor = null;
+    if (rows.length > limit) {
+      rows.pop();
+      nextCursor = encodeCursor(rows[rows.length - 1]);
+    }
+
+    // Batch-fetch photos
+    const submissionIds = rows.map(r => r.id);
+    let photoMap = {};
+    if (submissionIds.length > 0 && cdnDomain) {
+      const photoRes = await client.query(
+        `SELECT submission_id, thumbnail_s3_key
+         FROM submission_photos
+         WHERE submission_id = ANY($1)
+           AND status = 'ready'
+         ORDER BY submission_id, created_at ASC`,
+        [submissionIds]
+      );
+      for (const photo of photoRes.rows) {
+        if (!photoMap[photo.submission_id]) {
+          photoMap[photo.submission_id] = [];
+        }
+        photoMap[photo.submission_id].push(`https://${cdnDomain}/${photo.thumbnail_s3_key}`);
+      }
+    }
+
+    const data = rows.map(row => {
+      const fuzzed = fuzzCoordinates(row.id, row.display_lat, row.display_lng, row.privacy_mode);
+      return {
+        id: row.id,
+        contributor_name: row.contributor_name,
+        story_text: row.story_text,
+        privacy_mode: row.privacy_mode,
+        display_lat: fuzzed.lat,
+        display_lng: fuzzed.lng,
+        created_at: row.created_at,
+        photo_urls: photoMap[row.id] || []
+      };
+    });
+
+    return { data, cursor: nextCursor };
+  } catch (err) {
+    console.error(JSON.stringify({
+      level: 'error',
+      message: err instanceof Error ? err.message : String(err),
+      errorName: err instanceof Error ? err.name : 'UnknownError',
+      endpoint: 'GET /okra'
+    }));
+    return errorResponse(500, 'INTERNAL_ERROR', 'An unexpected error occurred');
+  } finally {
+    await client.end();
+  }
+});
 
 app.notFound(() => {
   return new Response(
