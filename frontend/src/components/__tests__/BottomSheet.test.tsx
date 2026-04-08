@@ -10,6 +10,7 @@ function makePinData(overrides: Partial<PinData> = {}): PinData {
     display_lng: -74.0,
     contributor_name: 'Jane',
     story_text: 'My okra garden story',
+    country: null,
     photo_urls: ['https://cdn.example.com/photo1.jpg'],
     ...overrides,
   };

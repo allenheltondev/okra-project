@@ -467,6 +467,7 @@ function makePin(lat: number, lng: number, index: number): PinData {
     display_lng: lng,
     contributor_name: null,
     story_text: null,
+    country: null,
     photo_urls: [],
   };
 }
