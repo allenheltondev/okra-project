@@ -94,7 +94,7 @@ jobs:
         working-directory: backend
         run: |
           npm_config_platform=linux npm_config_arch=arm64 sam build --template-file template.yaml --cached --parallel
-          sam deploy --config-file samconfig.generated.toml --config-env preview
+          sam deploy --config-file samconfig.generated.toml --config-env preview --no-fail-on-empty-changeset
 
       - name: Resolve preview API base URL
         id: api

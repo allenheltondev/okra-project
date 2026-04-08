@@ -4,6 +4,7 @@ import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge
 import { createDbClient } from '../../scripts/db-client.mjs';
 import { isUuid } from '../services/photos.mjs';
 import { encodeCursor, decodeCursor, errorResponse } from '../services/pagination.mjs';
+import { resolveCountry } from '../services/reverse-geocoder.mjs';
 
 const s3 = new S3Client({});
 const eventBridge = new EventBridgeClient({});
@@ -380,6 +381,34 @@ async function handleApproval(ctx, submissionId, { review_notes, display_lat, di
        VALUES ($1, 'approved', $2, now(), $3)`,
       [submissionId, adminUserId, review_notes || null]
     );
+
+    // Resolve country from coordinates and store in the same transaction
+    let country = null;
+    try {
+      country = resolveCountry(row.display_lat, row.display_lng);
+      if (country === null) {
+        console.warn(JSON.stringify({
+          level: 'warn',
+          message: 'Reverse geocoder returned null for coordinates',
+          display_lat: row.display_lat,
+          display_lng: row.display_lng,
+          submissionId
+        }));
+      }
+    } catch (geocodeErr) {
+      console.error(JSON.stringify({
+        level: 'error',
+        message: 'Reverse geocoder threw an error',
+        error: geocodeErr instanceof Error ? geocodeErr.message : String(geocodeErr),
+        submissionId
+      }));
+      // country remains null — approval still succeeds
+    }
+    await client.query(
+      'UPDATE submissions SET country = $1 WHERE id = $2',
+      [country, submissionId]
+    );
+
     await client.query('COMMIT');
 
     const response = {

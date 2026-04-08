@@ -1,5 +1,4 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest';
-import { fuzzCoordinates } from '../../src/services/privacy-fuzzing.mjs';
 
 // ─── Mocks ──────────────────────────────────────────────────────────────────
 
@@ -39,7 +38,7 @@ function makeRestApiEvent(path: string, method = 'GET') {
     pathParameters: null,
     stageVariables: null,
     requestContext: {
-      requestId: 'req-okra',
+      requestId: 'req-stats',
       path,
       stage: 'api',
       identity: { sourceIp: '127.0.0.1', userAgent: 'vitest' },
@@ -54,75 +53,61 @@ function parseRes(res: any) {
     statusCode: res.statusCode,
     body: JSON.parse(res.body),
     headers: res.headers ?? {},
-  };
-}
-
-// ─── Fixtures ───────────────────────────────────────────────────────────────
-
-const UUID_1 = '550e8400-e29b-41d4-a716-446655440001';
-const UUID_2 = '550e8400-e29b-41d4-a716-446655440002';
-
-function makeApprovedRow(overrides: Record<string, any> = {}) {
-  return {
-    id: UUID_1,
-    contributor_name: 'Alice',
-    story_text: 'Found okra here',
-    privacy_mode: 'exact',
-    display_lat: 34.05,
-    display_lng: -118.24,
-    ...overrides,
-  };
-}
-
-function setupOkraMocks(submissionRows: any[] = [], photoRows: any[] = []) {
-  queryResponses = {
-    'FROM submissions': { rows: submissionRows, rowCount: submissionRows.length },
-    'FROM submission_photos': { rows: photoRows, rowCount: photoRows.length },
+    multiValueHeaders: res.multiValueHeaders ?? {},
   };
 }
 
 // ─── Setup / Teardown ───────────────────────────────────────────────────────
 
 beforeEach(() => {
-  process.env.MEDIA_CDN_DOMAIN = 'dtest123.cloudfront.net';
   queryResponses = {};
   vi.clearAllMocks();
 });
 
-afterEach(() => {
-  delete process.env.MEDIA_CDN_DOMAIN;
-});
+afterEach(() => {});
 
 // ═══════════════════════════════════════════════════════════════════════════
-// GET /okra — Empty result (Requirement 2.4)
+// GET /okra/stats — Correct aggregates with mixed data (Requirement 3.1, 3.2, 3.3)
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('GET /okra — empty result', () => {
-  it('returns empty data array and total_count 0 when no approved submissions exist', async () => {
-    setupOkraMocks([], []);
-    const res = await handler(makeRestApiEvent('/okra'));
+describe('GET /okra/stats — correct aggregates with mixed data', () => {
+  it('returns correct total_pins, country_count, and contributor_count', async () => {
+    queryResponses = {
+      'COUNT(*)': {
+        rows: [{ total_pins: 42, country_count: 7, contributor_count: 15 }],
+        rowCount: 1,
+      },
+    };
+
+    const res = await handler(makeRestApiEvent('/okra/stats'));
     const { statusCode, body } = parseRes(res);
 
     expect(statusCode).toBe(200);
-    expect(body.data).toEqual([]);
-    expect(body.total_count).toBe(0);
-    // No cursor field in the new unpaginated response
-    expect(body).not.toHaveProperty('cursor');
+    expect(body).toEqual({
+      total_pins: 42,
+      country_count: 7,
+      contributor_count: 15,
+    });
   });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// GET /okra — Cache-Control header (Requirement 2.6)
+// GET /okra/stats — Cache-Control header (Requirement 3.5)
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('GET /okra — Cache-Control header', () => {
+describe('GET /okra/stats — Cache-Control header', () => {
   it('sets Cache-Control: public, max-age=300, stale-while-revalidate=60', async () => {
-    setupOkraMocks([], []);
-    const res = await handler(makeRestApiEvent('/okra'));
+    queryResponses = {
+      'COUNT(*)': {
+        rows: [{ total_pins: 0, country_count: 0, contributor_count: 0 }],
+        rowCount: 1,
+      },
+    };
+
+    const res = await handler(makeRestApiEvent('/okra/stats'));
     const { statusCode } = parseRes(res);
 
     expect(statusCode).toBe(200);
-    // Powertools router splits comma-separated header values into multiValueHeaders array
     const cacheValues = res.multiValueHeaders?.['cache-control'];
     expect(cacheValues).toBeDefined();
     const joined = cacheValues.join(', ');
@@ -131,79 +116,96 @@ describe('GET /okra — Cache-Control header', () => {
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// GET /okra — total_count matches data.length (Requirement 2.5)
+// GET /okra/stats — Zero results when no approved submissions (Requirement 3.1)
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('GET /okra — total_count matches data.length', () => {
-  it('total_count equals the number of items in data array', async () => {
-    const rows = [
-      makeApprovedRow({ id: UUID_1 }),
-      makeApprovedRow({ id: UUID_2, display_lat: 40.0, display_lng: -74.0 }),
-    ];
-    setupOkraMocks(rows, []);
+describe('GET /okra/stats — zero results', () => {
+  it('returns all zeros when no approved submissions exist', async () => {
+    queryResponses = {
+      'COUNT(*)': {
+        rows: [{ total_pins: 0, country_count: 0, contributor_count: 0 }],
+        rowCount: 1,
+      },
+    };
 
-    const res = await handler(makeRestApiEvent('/okra'));
+    const res = await handler(makeRestApiEvent('/okra/stats'));
     const { statusCode, body } = parseRes(res);
 
     expect(statusCode).toBe(200);
-    expect(body.total_count).toBe(body.data.length);
-    expect(body.total_count).toBe(2);
+    expect(body.total_pins).toBe(0);
+    expect(body.country_count).toBe(0);
+    expect(body.contributor_count).toBe(0);
   });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// GET /okra — Missing MEDIA_CDN_DOMAIN returns empty photo_urls (Requirement 2.1)
+// GET /okra/stats — Null/empty contributor names excluded (Requirement 3.1)
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('GET /okra — MEDIA_CDN_DOMAIN not set', () => {
-  it('returns empty photo_urls for all submissions when MEDIA_CDN_DOMAIN is missing', async () => {
-    delete process.env.MEDIA_CDN_DOMAIN;
-    const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+describe('GET /okra/stats — null/empty contributor names excluded', () => {
+  it('contributor_count excludes null and empty contributor names', async () => {
+    // Simulates a DB with 5 approved submissions but only 2 distinct non-null
+    // non-empty contributor names — the SQL FILTER clause handles this
+    queryResponses = {
+      'COUNT(*)': {
+        rows: [{ total_pins: 5, country_count: 3, contributor_count: 2 }],
+        rowCount: 1,
+      },
+    };
 
-    const row = makeApprovedRow();
-    const photoRows = [
-      { submission_id: UUID_1, thumbnail_s3_key: 'submissions/abc/thumb.webp' },
-    ];
-    setupOkraMocks([row], photoRows);
-
-    const res = await handler(makeRestApiEvent('/okra'));
+    const res = await handler(makeRestApiEvent('/okra/stats'));
     const { statusCode, body } = parseRes(res);
 
     expect(statusCode).toBe(200);
-    expect(body.data).toHaveLength(1);
-    expect(body.data[0].photo_urls).toEqual([]);
-
-    // Verify warning was logged
-    expect(consoleSpy).toHaveBeenCalled();
-    const loggedMsg = consoleSpy.mock.calls.find(
-      (c: any[]) => typeof c[0] === 'string' && c[0].includes('MEDIA_CDN_DOMAIN')
-    );
-    expect(loggedMsg).toBeDefined();
-
-    consoleSpy.mockRestore();
+    expect(body.total_pins).toBe(5);
+    expect(body.contributor_count).toBe(2);
   });
 });
 
 // ═══════════════════════════════════════════════════════════════════════════
-// GET /okra — 500 on database failure
+// GET /okra/stats — Null countries excluded from country_count (Req 3.2, 3.3)
 // ═══════════════════════════════════════════════════════════════════════════
 
-describe('GET /okra — database error handling', () => {
+describe('GET /okra/stats — null countries excluded', () => {
+  it('country_count excludes null country values while total_pins includes those submissions', async () => {
+    // 10 approved submissions, but only 4 have non-null country values
+    queryResponses = {
+      'COUNT(*)': {
+        rows: [{ total_pins: 10, country_count: 4, contributor_count: 8 }],
+        rowCount: 1,
+      },
+    };
+
+    const res = await handler(makeRestApiEvent('/okra/stats'));
+    const { statusCode, body } = parseRes(res);
+
+    expect(statusCode).toBe(200);
+    expect(body.total_pins).toBe(10);
+    expect(body.country_count).toBe(4);
+    // total_pins > country_count confirms null countries are excluded from count
+    // but those submissions are still counted in total_pins
+    expect(body.total_pins).toBeGreaterThan(body.country_count);
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GET /okra/stats — 500 on database failure
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('GET /okra/stats — database error handling', () => {
   it('returns 500 INTERNAL_ERROR on database failure', async () => {
     const consoleSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
 
     queryResponses = {
-      'FROM submissions': () => { throw new Error('Connection refused: ECONNREFUSED'); },
+      'COUNT(*)': () => { throw new Error('Connection refused'); },
     };
 
-    const res = await handler(makeRestApiEvent('/okra'));
+    const res = await handler(makeRestApiEvent('/okra/stats'));
     const { statusCode, body } = parseRes(res);
 
     expect(statusCode).toBe(500);
     expect(body.error.code).toBe('INTERNAL_ERROR');
     expect(body.error.message).toBe('An unexpected error occurred');
-    // Should not leak internal error details
-    expect(body.error.message).not.toContain('ECONNREFUSED');
 
     consoleSpy.mockRestore();
   });

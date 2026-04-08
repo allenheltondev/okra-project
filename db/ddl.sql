@@ -58,6 +58,8 @@ create table if not exists submissions (
   reviewed_at timestamptz,
   review_notes text,
 
+  country text,
+
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
 
@@ -74,6 +76,10 @@ create index if not exists idx_submissions_approved
 
 create index if not exists idx_submissions_status_created_id
   on submissions(status, created_at asc, id asc);
+
+create index if not exists idx_submissions_approved_country
+  on submissions(status, country)
+  where status = 'approved';
 
 create table if not exists submission_photos (
   id uuid primary key default gen_random_uuid(),
