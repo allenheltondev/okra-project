@@ -38,6 +38,12 @@ vi.mock('@aws-sdk/client-eventbridge', () => ({
   PutEventsCommand: vi.fn((params: any) => ({ _params: params, _type: 'PutEventsCommand' })),
 }));
 
+const mockResolveCountry = vi.hoisted(() => vi.fn(() => 'United States'));
+
+vi.mock('../../src/services/reverse-geocoder.mjs', () => ({
+  resolveCountry: mockResolveCountry,
+}));
+
 import { handler } from '../../src/handlers/admin-api.mjs';
 
 // ─── Helpers ────────────────────────────────────────────────────────────────
@@ -438,6 +444,88 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
     ));
     expect(body.warnings).toHaveLength(1);
     expect(body.warnings[0].code).toBe('SUSPICIOUS_COORDINATES');
+  });
+});
+
+// ═══════════════════════════════════════════════════════════════════════════
+// POST /admin/submissions/:id/statuses — approval reverse geocoding
+// ═══════════════════════════════════════════════════════════════════════════
+
+describe('POST /admin/submissions/:id/statuses — approval reverse geocoding', () => {
+  function setupApproveMocks(overrides: Record<string, any> = {}) {
+    const approvedRow = makeApprovedRow(overrides);
+    queryResponses = {
+      'SELECT id, status FROM submissions': { rows: [{ id: '550e8400-e29b-41d4-a716-446655440001', status: 'pending_review' }] },
+      'COUNT(*)': { rows: [{ count: 2 }] },
+      'admin_users': { rows: [{ id: 'admin-uuid-1' }] },
+      'BEGIN': { rows: [] },
+      'SET country': { rows: [], rowCount: 1 },
+      'UPDATE submissions': { rows: [approvedRow], rowCount: 1 },
+      'INSERT INTO submission_reviews': { rows: [] },
+      'COMMIT': { rows: [] },
+    };
+  }
+
+  beforeEach(() => {
+    mockResolveCountry.mockReset();
+    mockResolveCountry.mockReturnValue('United States');
+  });
+
+  it('calls resolveCountry and stores the returned value', async () => {
+    setupApproveMocks();
+    const { statusCode } = parseRes(await handler(
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' },
+        body: { status: 'approved' },
+      })
+    ));
+    expect(statusCode).toBe(200);
+    expect(mockResolveCountry).toHaveBeenCalledWith(34.05, -118.24);
+    const countryUpdateCall = mockClient.query.mock.calls.find(
+      (c: any[]) => typeof c[0] === 'string' && c[0].includes('UPDATE submissions SET country')
+    );
+    expect(countryUpdateCall).toBeDefined();
+    expect(countryUpdateCall![1]).toEqual(['United States', '550e8400-e29b-41d4-a716-446655440001']);
+  });
+
+  it('stores null and logs warning when geocoder returns null', async () => {
+    mockResolveCountry.mockReturnValue(null);
+    setupApproveMocks();
+    const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
+    const { statusCode } = parseRes(await handler(
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' },
+        body: { status: 'approved' },
+      })
+    ));
+    expect(statusCode).toBe(200);
+    expect(mockResolveCountry).toHaveBeenCalled();
+    const countryUpdateCall = mockClient.query.mock.calls.find(
+      (c: any[]) => typeof c[0] === 'string' && c[0].includes('UPDATE submissions SET country')
+    );
+    expect(countryUpdateCall![1]).toEqual([null, '550e8400-e29b-41d4-a716-446655440001']);
+    expect(warnSpy).toHaveBeenCalled();
+    warnSpy.mockRestore();
+  });
+
+  it('still succeeds approval even if geocoder throws', async () => {
+    mockResolveCountry.mockImplementation(() => { throw new Error('Geocoder exploded'); });
+    setupApproveMocks();
+    const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
+    const { statusCode, body } = parseRes(await handler(
+      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+        pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' },
+        body: { status: 'approved' },
+      })
+    ));
+    expect(statusCode).toBe(200);
+    expect(body.status).toBe('approved');
+    const countryUpdateCall = mockClient.query.mock.calls.find(
+      (c: any[]) => typeof c[0] === 'string' && c[0].includes('UPDATE submissions SET country')
+    );
+    expect(countryUpdateCall![1]).toEqual([null, '550e8400-e29b-41d4-a716-446655440001']);
+    expect(errorSpy).toHaveBeenCalled();
+    errorSpy.mockRestore();
   });
 });
 

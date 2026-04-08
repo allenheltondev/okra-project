@@ -160,6 +160,54 @@ paths:
         '422':
           description: Validation error
 
+  /okra:
+    get:
+      operationId: getOkra
+      summary: Get all approved submissions as map pins (replaces previous paginated behavior)
+      tags:
+        - map
+      responses:
+        '200':
+          description: All approved pins with popup data
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: "public, max-age=300, stale-while-revalidate=60"
+          content:
+            application/json:
+              schema:
+                type: object
+                required:
+                  - total_count
+                  - data
+                properties:
+                  total_count:
+                    type: integer
+                  data:
+                    type: array
+                    items:
+                      $ref: '#/components/schemas/MapPin'
+
+  /okra/stats:
+    get:
+      operationId: getOkraStats
+      summary: Get aggregate statistics for approved submissions
+      tags:
+        - map
+      responses:
+        '200':
+          description: Community statistics
+          headers:
+            Cache-Control:
+              schema:
+                type: string
+                example: "public, max-age=300, stale-while-revalidate=60"
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/OkraStats'
+
   /admin/submissions:
     get:
       operationId: listAdminSubmissions
@@ -255,6 +303,49 @@ paths:
 
 components:
   schemas:
+    MapPin:
+      type: object
+      required:
+        - id
+        - display_lat
+        - display_lng
+        - photo_urls
+      properties:
+        id:
+          type: string
+          format: uuid
+        display_lat:
+          type: number
+          format: double
+        display_lng:
+          type: number
+          format: double
+        contributor_name:
+          type: string
+          nullable: true
+        story_text:
+          type: string
+          nullable: true
+        photo_urls:
+          type: array
+          items:
+            type: string
+            format: uri
+
+    OkraStats:
+      type: object
+      required:
+        - total_pins
+        - country_count
+        - contributor_count
+      properties:
+        total_pins:
+          type: integer
+        country_count:
+          type: integer
+        contributor_count:
+          type: integer
+
     ErrorResponse:
       type: object
       required:
