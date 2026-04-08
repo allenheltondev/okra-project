@@ -3,42 +3,10 @@ import { getSignedUrl } from '@aws-sdk/s3-request-presigner';
 import { EventBridgeClient, PutEventsCommand } from '@aws-sdk/client-eventbridge';
 import { createDbClient } from '../../scripts/db-client.mjs';
 import { isUuid } from '../services/photos.mjs';
+import { encodeCursor, decodeCursor, errorResponse } from '../services/pagination.mjs';
 
 const s3 = new S3Client({});
 const eventBridge = new EventBridgeClient({});
-
-export function errorResponse(statusCode, code, message) {
-  return new Response(
-    JSON.stringify({ error: { code, message } }),
-    { status: statusCode, headers: { 'content-type': 'application/json' } }
-  );
-}
-
-export function encodeCursor(row) {
-  // Use created_at_raw (text) to preserve full PostgreSQL microsecond precision
-  return Buffer.from(
-    JSON.stringify({ created_at: row.created_at_raw, id: row.id })
-  ).toString('base64url');
-}
-
-export function decodeCursor(token) {
-  try {
-    const parsed = JSON.parse(Buffer.from(token, 'base64url').toString());
-    if (!parsed.created_at || !parsed.id) return null;
-
-    // Validate created_at is a parseable timestamp string
-    if (typeof parsed.created_at !== 'string') return null;
-    const ts = new Date(parsed.created_at);
-    if (isNaN(ts.getTime())) return null;
-
-    // Validate id is a valid UUID
-    if (!/^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(parsed.id)) return null;
-
-    return { created_at: parsed.created_at, id: parsed.id };
-  } catch {
-    return null;
-  }
-}
 
 export async function presignPhotoUrl(bucket, key, expiresIn = 900) {
   return getSignedUrl(s3, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn });
@@ -48,7 +16,165 @@ const VALID_STATUSES = ['pending_review', 'approved', 'denied'];
 const VALID_ACTIONS = ['approved', 'denied'];
 const VALID_DENIAL_REASONS = ['spam', 'invalid_location', 'inappropriate', 'other'];
 
+/**
+ * Validate and parse the `limit` query parameter (regex-based).
+ * Returns { valid: true, value: number } or { valid: false, response: Response }.
+ */
+function validateLimit(raw) {
+  if (raw == null) return { valid: true, value: 20 };
+  const trimmed = String(raw).trim();
+  if (!/^[0-9]+$/.test(trimmed)) {
+    return { valid: false, response: errorResponse(400, 'INVALID_LIMIT', 'Limit must be a positive integer') };
+  }
+  const parsed = parseInt(trimmed, 10);
+  if (parsed === 0) {
+    return { valid: false, response: errorResponse(400, 'INVALID_LIMIT', 'Limit must be a positive integer') };
+  }
+  return { valid: true, value: Math.min(parsed, 100) };
+}
+
+/**
+ * Validate and decode the `cursor` query parameter.
+ * Returns { valid: true, value: object|null } or { valid: false, response: Response }.
+ */
+function validateCursor(raw) {
+  if (raw == null) return { valid: true, value: null };
+  const decoded = decodeCursor(raw);
+  if (!decoded) {
+    return { valid: false, response: errorResponse(400, 'INVALID_CURSOR', 'Invalid or malformed cursor') };
+  }
+  return { valid: true, value: decoded };
+}
+
 export function registerAdminRoutes(app) {
+  // ─── GET /admin/submissions/review-queue ──────────────────────────────
+  app.get('/admin/submissions/review-queue', async (ctx) => {
+    const bucket = process.env.MEDIA_BUCKET_NAME;
+    if (!bucket) {
+      console.error(JSON.stringify({
+        level: 'error',
+        message: 'MEDIA_BUCKET_NAME not set — cannot generate pre-signed URLs',
+        endpoint: 'GET /admin/submissions/review-queue'
+      }));
+      return errorResponse(500, 'INTERNAL_ERROR', 'An unexpected error occurred');
+    }
+
+    const params = ctx.event?.queryStringParameters || {};
+
+    const limitResult = validateLimit(params.limit);
+    if (!limitResult.valid) return limitResult.response;
+    const limit = limitResult.value;
+
+    const cursorResult = validateCursor(params.cursor);
+    if (!cursorResult.valid) return cursorResult.response;
+    const cursor = cursorResult.value;
+
+    const client = await createDbClient();
+    await client.connect();
+    try {
+      let rows;
+      if (cursor) {
+        const res = await client.query(
+          `SELECT s.id, s.contributor_name, s.contributor_email, s.story_text,
+                  s.raw_location_text, s.privacy_mode, s.display_lat, s.display_lng,
+                  s.status, s.created_at,
+                  s.created_at::text AS created_at_raw
+           FROM submissions s
+           WHERE s.status = 'pending_review'
+             AND EXISTS (
+               SELECT 1 FROM submission_photos sp
+               WHERE sp.submission_id = s.id AND sp.status = 'ready'
+             )
+             AND (s.created_at, s.id) > ($1::timestamptz, $2)
+           ORDER BY s.created_at ASC, s.id ASC
+           LIMIT $3`,
+          [cursor.created_at, cursor.id, limit + 1]
+        );
+        rows = res.rows;
+      } else {
+        const res = await client.query(
+          `SELECT s.id, s.contributor_name, s.contributor_email, s.story_text,
+                  s.raw_location_text, s.privacy_mode, s.display_lat, s.display_lng,
+                  s.status, s.created_at,
+                  s.created_at::text AS created_at_raw
+           FROM submissions s
+           WHERE s.status = 'pending_review'
+             AND EXISTS (
+               SELECT 1 FROM submission_photos sp
+               WHERE sp.submission_id = s.id AND sp.status = 'ready'
+             )
+           ORDER BY s.created_at ASC, s.id ASC
+           LIMIT $1`,
+          [limit + 1]
+        );
+        rows = res.rows;
+      }
+
+      let nextCursor = null;
+      if (rows.length > limit) {
+        rows.pop();
+        nextCursor = encodeCursor(rows[rows.length - 1]);
+      }
+
+      // Batch-fetch photos for all returned submissions
+      const submissionIds = rows.map(r => r.id);
+      const photoMap = {};
+      if (submissionIds.length > 0) {
+        const photoRes = await client.query(
+          `SELECT submission_id, original_s3_key
+           FROM submission_photos
+           WHERE submission_id = ANY($1)
+             AND status = 'ready'
+           ORDER BY submission_id, created_at ASC`,
+          [submissionIds]
+        );
+        for (const photo of photoRes.rows) {
+          if (!photoMap[photo.submission_id]) {
+            photoMap[photo.submission_id] = [];
+          }
+          photoMap[photo.submission_id].push(photo.original_s3_key);
+        }
+      }
+
+      // Generate pre-signed S3 URLs for each submission's photos
+      const data = await Promise.all(
+        rows.map(async (row) => {
+          const keys = photoMap[row.id] || [];
+          const photos = await Promise.all(
+            keys.map((key) => presignPhotoUrl(bucket, key, 900))
+          );
+          return {
+            id: row.id,
+            contributor_name: row.contributor_name,
+            contributor_email: row.contributor_email,
+            story_text: row.story_text,
+            raw_location_text: row.raw_location_text,
+            privacy_mode: row.privacy_mode,
+            display_lat: row.display_lat,
+            display_lng: row.display_lng,
+            status: row.status,
+            created_at: row.created_at,
+            photo_count: photos.length,
+            has_photos: photos.length > 0,
+            photos
+          };
+        })
+      );
+
+      return { data, cursor: nextCursor };
+    } catch (err) {
+      console.error(JSON.stringify({
+        level: 'error',
+        message: err instanceof Error ? err.message : String(err),
+        errorName: err instanceof Error ? err.name : 'UnknownError',
+        endpoint: 'GET /admin/submissions/review-queue'
+      }));
+      return errorResponse(500, 'INTERNAL_ERROR', 'An unexpected error occurred');
+    } finally {
+      await client.end();
+    }
+  });
+
   // ─── GET /admin/submissions ───────────────────────────────────────────
   app.get('/admin/submissions', async (ctx) => {
     const params = ctx.event.queryStringParameters || {};
@@ -57,22 +183,13 @@ export function registerAdminRoutes(app) {
       return errorResponse(400, 'INVALID_STATUS', `Invalid status: ${status}. Must be one of: ${VALID_STATUSES.join(', ')}`);
     }
 
-    let limit = 20;
-    if (params.limit !== undefined && params.limit !== null) {
-      const parsed = Number(params.limit);
-      if (!Number.isFinite(parsed) || !Number.isInteger(parsed) || parsed <= 0) {
-        return errorResponse(400, 'INVALID_LIMIT', 'Limit must be a positive integer');
-      }
-      limit = Math.min(parsed, 100);
-    }
+    const limitResult = validateLimit(params.limit);
+    if (!limitResult.valid) return limitResult.response;
+    const limit = limitResult.value;
 
-    let cursor = null;
-    if (params.cursor !== undefined && params.cursor !== null && params.cursor !== '') {
-      cursor = decodeCursor(params.cursor);
-      if (!cursor) {
-        return errorResponse(400, 'INVALID_CURSOR', 'Malformed cursor token');
-      }
-    }
+    const cursorResult = validateCursor(params.cursor);
+    if (!cursorResult.valid) return cursorResult.response;
+    const cursor = cursorResult.value;
 
     const client = await createDbClient();
     await client.connect();
