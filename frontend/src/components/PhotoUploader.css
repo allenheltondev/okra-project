@@ -1,0 +1,169 @@
+.photo-uploader {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+
+.photo-uploader__input-wrapper {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.photo-uploader__label {
+  font-size: 0.85rem;
+  color: var(--color-neutral-700);
+  cursor: pointer;
+}
+
+.photo-uploader__file-input {
+  font-family: var(--font-family-sans);
+  font-size: 0.85rem;
+}
+
+.photo-uploader__file-input:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.photo-uploader__message {
+  font-size: 0.8rem;
+  color: var(--color-neutral-700);
+  margin: 0;
+}
+
+.photo-uploader__message--warning {
+  color: #b45309;
+}
+
+.photo-uploader__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(100px, 1fr));
+  gap: 0.5rem;
+}
+
+.photo-uploader__thumb {
+  position: relative;
+  aspect-ratio: 1;
+  border-radius: var(--radius-base);
+  overflow: hidden;
+  background: var(--color-neutral-100);
+  border: 1px solid var(--color-neutral-300);
+}
+
+.photo-uploader__thumb img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  display: block;
+}
+
+.photo-uploader__thumb--failed {
+  border-color: #dc2626;
+}
+
+/* Remove button */
+.photo-uploader__remove-btn {
+  position: absolute;
+  top: 4px;
+  right: 4px;
+  z-index: 2;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: rgba(0, 0, 0, 0.5);
+  color: #fff;
+  font-size: 0.75rem;
+  line-height: 1;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0;
+}
+
+.photo-uploader__remove-btn:hover {
+  background: rgba(0, 0, 0, 0.7);
+}
+
+/* State overlays */
+.photo-uploader__overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 0.25rem;
+  z-index: 1;
+}
+
+.photo-uploader__overlay--uploading {
+  background: rgba(255, 255, 255, 0.6);
+}
+
+.photo-uploader__overlay--uploaded {
+  background: rgba(63, 125, 58, 0.15);
+}
+
+.photo-uploader__overlay--failed {
+  background: rgba(220, 38, 38, 0.1);
+}
+
+/* Spinner */
+.photo-uploader__spinner {
+  width: 24px;
+  height: 24px;
+  border: 3px solid var(--color-neutral-300);
+  border-top-color: var(--color-primary-500);
+  border-radius: 50%;
+  animation: photo-spin 0.8s linear infinite;
+}
+
+@keyframes photo-spin {
+  to { transform: rotate(360deg); }
+}
+
+/* Checkmark */
+.photo-uploader__checkmark {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  background: var(--color-primary-500);
+  color: #fff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+/* Error icon */
+.photo-uploader__error-icon {
+  color: #dc2626;
+  font-size: 1.2rem;
+  font-weight: 700;
+}
+
+.photo-uploader__error-msg {
+  font-size: 0.65rem;
+  color: #dc2626;
+  text-align: center;
+  padding: 0 0.25rem;
+}
+
+.photo-uploader__retry-btn {
+  font-size: 0.7rem;
+  font-family: var(--font-family-sans);
+  background: none;
+  border: 1px solid #dc2626;
+  color: #dc2626;
+  border-radius: var(--radius-base);
+  padding: 0.15rem 0.4rem;
+  cursor: pointer;
+}
+
+.photo-uploader__retry-btn:hover {
+  background: #fef2f2;
+}

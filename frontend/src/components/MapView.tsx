@@ -48,9 +48,11 @@ export interface MapViewProps {
   onStatsLoaded?: (stats: StatsData) => void;
   /** Called when a pin is selected (from map click or external) */
   onPinSelected?: (pin: PinData | null) => void;
+  /** Called when the user clicks the "Share your garden" CTA in the empty state */
+  onOpenSubmission?: () => void;
 }
 
-export function MapView({ externalSelectedPin, onPinsLoaded, onStatsLoaded, onPinSelected }: MapViewProps) {
+export function MapView({ externalSelectedPin, onPinsLoaded, onStatsLoaded, onPinSelected, onOpenSubmission }: MapViewProps) {
   const [pins, setPins] = useState<PinData[] | null>(null);
   const [pinError, setPinError] = useState<Error | null>(null);
   const [pinsLoading, setPinsLoading] = useState(true);
@@ -173,7 +175,7 @@ export function MapView({ externalSelectedPin, onPinsLoaded, onStatsLoaded, onPi
         {showEmpty && (
           <div className="map-view__empty" role="status">
             <p className="map-view__empty-message">No gardens yet — be the first to share yours</p>
-            <a href="/submit" className="map-view__cta-link">Share your garden</a>
+            <button type="button" className="map-view__cta-link" onClick={onOpenSubmission}>Share your garden</button>
           </div>
         )}
       </div>
