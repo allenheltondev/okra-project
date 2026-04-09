@@ -48,8 +48,8 @@ function validateCursor(raw) {
 }
 
 export function registerAdminRoutes(app) {
-  // ─── GET /admin/submissions/review-queue ──────────────────────────────
-  app.get('/admin/submissions/review-queue', async (ctx) => {
+  // ─── GET /submissions/review-queue ──────────────────────────────
+  app.get('/submissions/review-queue', async (ctx) => {
     const bucket = process.env.MEDIA_BUCKET_NAME;
     if (!bucket) {
       console.error(JSON.stringify({
@@ -176,8 +176,8 @@ export function registerAdminRoutes(app) {
     }
   });
 
-  // ─── GET /admin/submissions ───────────────────────────────────────────
-  app.get('/admin/submissions', async (ctx) => {
+  // ─── GET /submissions ───────────────────────────────────────────
+  app.get('/submissions', async (ctx) => {
     const params = ctx.event.queryStringParameters || {};
     const status = params.status || 'pending_review';
     if (!VALID_STATUSES.includes(status)) {
@@ -282,8 +282,8 @@ export function registerAdminRoutes(app) {
     }
   });
 
-  // ─── POST /admin/submissions/:id/statuses ─────────────────────────────
-  app.post('/admin/submissions/:id/statuses', async (ctx) => {
+  // ─── POST /submissions/:id/statuses ─────────────────────────────
+  app.post('/submissions/:id/statuses', async (ctx) => {
     const submissionId = ctx.params.id;
 
     if (!isUuid(submissionId)) {
