@@ -27,7 +27,7 @@ describe('Property 4: Reverse geocoder resolves land coordinates to countries', 
   const oceanRegions = [
     { name: 'Mid-Atlantic', latMin: -35, latMax: -20, lngMin: -20, lngMax: -5 },
     { name: 'South Pacific', latMin: -50, latMax: -38, lngMin: -135, lngMax: -115 },
-    { name: 'Southern Indian Ocean', latMin: -55, latMax: -45, lngMin: 60, lngMax: 80 },
+    { name: 'Southern Indian Ocean', latMin: -44, latMax: -36, lngMin: 60, lngMax: 80 },
     { name: 'Central Pacific', latMin: 5, latMax: 15, lngMin: -175, lngMax: -165 },
   ];
 
