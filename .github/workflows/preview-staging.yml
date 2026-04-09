@@ -23,7 +23,7 @@ jobs:
     outputs:
       api_base_url: ${{ steps.api.outputs.api_base_url }}
       admin_api_base_url: ${{ steps.admin-api.outputs.admin_api_base_url }}
-      admin_token: ${{ steps.ci-auth.outputs.admin_token }}
+      ci_auth_function_name: ${{ steps.ci-auth-fn.outputs.ci_auth_function_name }}
     env:
       STACK_NAME: okra-project-preview-pr-${{ github.event.pull_request.number }}
 
@@ -126,8 +126,8 @@ jobs:
           ADMIN_API_BASE_URL="${ADMIN_ROOT%/}/admin"
           echo "admin_api_base_url=$ADMIN_API_BASE_URL" >> "$GITHUB_OUTPUT"
 
-      - name: Get CI admin token from Lambda
-        id: ci-auth
+      - name: Resolve CI auth function name
+        id: ci-auth-fn
         run: |
           FUNCTION_NAME=$(aws cloudformation describe-stacks \
             --stack-name "$STACK_NAME" \
@@ -137,19 +137,7 @@ jobs:
             echo "CiAuthTokenFunctionName stack output is required for integration test auth."
             exit 1
           fi
-          aws lambda invoke \
-            --function-name "$FUNCTION_NAME" \
-            --payload '{}' \
-            --cli-binary-format raw-in-base64-out \
-            ci-auth-response.json > /dev/null
-          ADMIN_TOKEN=$(jq -r '.accessToken' ci-auth-response.json)
-          if [ -z "$ADMIN_TOKEN" ] || [ "$ADMIN_TOKEN" = "null" ]; then
-            echo "Failed to extract accessToken from CI auth Lambda response."
-            cat ci-auth-response.json
-            exit 1
-          fi
-          echo "::add-mask::$ADMIN_TOKEN"
-          echo "admin_token=$ADMIN_TOKEN" >> "$GITHUB_OUTPUT"
+          echo "ci_auth_function_name=$FUNCTION_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Build frontend
         run: npm run --workspace okra-frontend build
@@ -208,6 +196,29 @@ jobs:
           node-version: '24'
           cache: npm
 
+      - name: Configure AWS credentials (stage)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_STAGE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get CI admin token from Lambda
+        id: ci-auth
+        run: |
+          aws lambda invoke \
+            --function-name "${{ needs.deploy-preview.outputs.ci_auth_function_name }}" \
+            --payload '{}' \
+            --cli-binary-format raw-in-base64-out \
+            ci-auth-response.json > /dev/null
+          ADMIN_TOKEN=$(jq -r '.accessToken' ci-auth-response.json)
+          if [ -z "$ADMIN_TOKEN" ] || [ "$ADMIN_TOKEN" = "null" ]; then
+            echo "Failed to extract accessToken from CI auth Lambda response."
+            cat ci-auth-response.json
+            exit 1
+          fi
+          echo "::add-mask::$ADMIN_TOKEN"
+          echo "admin_token=$ADMIN_TOKEN" >> "$GITHUB_OUTPUT"
+
       - name: Install dependencies
         run: npm ci
 
@@ -215,7 +226,7 @@ jobs:
         env:
           API_BASE_URL: ${{ needs.deploy-preview.outputs.api_base_url }}
           ADMIN_API_BASE_URL: ${{ needs.deploy-preview.outputs.admin_api_base_url }}
-          ADMIN_TOKEN: ${{ needs.deploy-preview.outputs.admin_token }}
+          ADMIN_TOKEN: ${{ steps.ci-auth.outputs.admin_token }}
           DATABASE_URL: ${{ secrets.DATABASE_URL_STAGING }}
         run: npm run test:integration
 
