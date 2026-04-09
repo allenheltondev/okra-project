@@ -129,12 +129,21 @@ jobs:
             --stack-name "$STACK_NAME" \
             --query "Stacks[0].Outputs[?OutputKey=='CiAuthTokenFunctionName'].OutputValue" \
             --output text)
-          RESPONSE=$(aws lambda invoke \
+          if [ -z "$FUNCTION_NAME" ] || [ "$FUNCTION_NAME" = "None" ] || [ "$FUNCTION_NAME" = "NONE" ]; then
+            echo "CiAuthTokenFunctionName stack output is required for integration test auth."
+            exit 1
+          fi
+          aws lambda invoke \
             --function-name "$FUNCTION_NAME" \
             --payload '{}' \
             --cli-binary-format raw-in-base64-out \
-            /dev/stdout 2>/dev/null)
-          ADMIN_TOKEN=$(echo "$RESPONSE" | jq -r '.accessToken')
+            ci-auth-response.json > /dev/null
+          ADMIN_TOKEN=$(jq -r '.accessToken' ci-auth-response.json)
+          if [ -z "$ADMIN_TOKEN" ] || [ "$ADMIN_TOKEN" = "null" ]; then
+            echo "Failed to extract accessToken from CI auth Lambda response."
+            cat ci-auth-response.json
+            exit 1
+          fi
           echo "::add-mask::$ADMIN_TOKEN"
           echo "admin_token=$ADMIN_TOKEN" >> "$GITHUB_OUTPUT"
 
