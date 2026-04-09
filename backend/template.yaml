@@ -24,6 +24,9 @@ Parameters:
     NoEcho: true
     Description: CI admin password for integration test auth token Lambda
 
+Conditions:
+  HasSharedUserPool: !Not [!Equals [!Ref SharedUserPoolId, '']]
+
 Globals:
   Function:
     Runtime: nodejs24.x
@@ -426,6 +429,14 @@ Resources:
       Environment:
         Variables:
           DATABASE_URL: !Ref DatabaseUrl
+
+  AdminUserPoolGroup:
+    Type: AWS::Cognito::UserPoolGroup
+    Condition: HasSharedUserPool
+    Properties:
+      GroupName: admin
+      UserPoolId: !Ref SharedUserPoolId
+      Description: Admin group for authenticated admin API access
 
   CiAuthTokenFunction:
     Type: AWS::Serverless::Function
