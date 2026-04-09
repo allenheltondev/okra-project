@@ -183,10 +183,10 @@ async function run() {
     reporter.assert('approval', !!approvalSubmissionId, 'POST /submissions returns submissionId', subRes.json);
     reporter.assert('approval', subRes.json?.status === 'pending_review', `POST /submissions status is pending_review (got ${subRes.json?.status})`, subRes.json);
 
-    // Step 4: Poll review queue until submission appears with has_photos: true
-    console.log('  Polling review queue for approval submission...');
+    // Step 4: Poll pending_review listing until submission appears with has_photos: true
+    console.log('  Polling pending_review listing for approval submission...');
     const queueResult = await poll({
-      fn: () => adminApi.request('/submissions/review-queue'),
+      fn: () => adminApi.request('/submissions?status=pending_review'),
       until: (res) => {
         if (!Array.isArray(res.json?.data)) return false;
         return res.json.data.some(
@@ -195,9 +195,9 @@ async function run() {
       },
       intervalMs: 2000,
       timeoutMs: 60000,
-      label: `review-queue for approval submission ${approvalSubmissionId}`
+      label: `pending_review listing for approval submission ${approvalSubmissionId}`
     });
-    reporter.pass('approval', `Submission ${approvalSubmissionId} appeared in review queue with has_photos: true (${queueResult.attempts} attempts, ${queueResult.elapsedMs}ms)`);
+    reporter.pass('approval', `Submission ${approvalSubmissionId} appeared in pending_review listing with has_photos: true (${queueResult.attempts} attempts, ${queueResult.elapsedMs}ms)`);
 
     // Step 5: Approve the submission
     const approveRes = await adminApi.request(`/submissions/${approvalSubmissionId}/statuses`, {
@@ -279,10 +279,10 @@ async function run() {
     denialSubmissionId = subRes.json?.submissionId ?? null;
     reporter.assert('denial', !!denialSubmissionId, 'POST /submissions returns submissionId', subRes.json);
 
-    // Step 4: Poll review queue until submission appears with has_photos: true
-    console.log('  Polling review queue for denial submission...');
+    // Step 4: Poll pending_review listing until submission appears with has_photos: true
+    console.log('  Polling pending_review listing for denial submission...');
     const queueResult = await poll({
-      fn: () => adminApi.request('/submissions/review-queue'),
+      fn: () => adminApi.request('/submissions?status=pending_review'),
       until: (res) => {
         if (!Array.isArray(res.json?.data)) return false;
         return res.json.data.some(
@@ -291,9 +291,9 @@ async function run() {
       },
       intervalMs: 2000,
       timeoutMs: 60000,
-      label: `review-queue for denial submission ${denialSubmissionId}`
+      label: `pending_review listing for denial submission ${denialSubmissionId}`
     });
-    reporter.pass('denial', `Submission ${denialSubmissionId} appeared in review queue with has_photos: true (${queueResult.attempts} attempts, ${queueResult.elapsedMs}ms)`);
+    reporter.pass('denial', `Submission ${denialSubmissionId} appeared in pending_review listing with has_photos: true (${queueResult.attempts} attempts, ${queueResult.elapsedMs}ms)`);
 
     // Step 5: Deny the submission
     const denyRes = await adminApi.request(`/submissions/${denialSubmissionId}/statuses`, {

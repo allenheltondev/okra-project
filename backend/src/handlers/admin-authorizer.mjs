@@ -22,6 +22,13 @@ function getVerifier() {
 }
 
 function generatePolicy(principalId, effect, resource, context = {}) {
+  // Wildcard the resource so the cached policy covers all methods/paths on this API stage.
+  // methodArn format: arn:aws:execute-api:{region}:{accountId}:{apiId}/{stage}/{method}/{resource}
+  const arnParts = resource.split(':');
+  const apiGatewayPart = arnParts[5]; // e.g. {apiId}/{stage}/GET/submissions
+  const [apiId, stage] = apiGatewayPart.split('/');
+  const wildcardArn = arnParts.slice(0, 5).join(':') + ':' + apiId + '/' + stage + '/*';
+
   return {
     principalId,
     policyDocument: {
@@ -30,7 +37,7 @@ function generatePolicy(principalId, effect, resource, context = {}) {
         {
           Action: 'execute-api:Invoke',
           Effect: effect,
-          Resource: resource
+          Resource: wildcardArn
         }
       ]
     },
