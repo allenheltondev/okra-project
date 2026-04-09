@@ -20,6 +20,10 @@ jobs:
   deploy-preview:
     if: github.event.action != 'closed'
     runs-on: ubuntu-latest
+    outputs:
+      api_base_url: ${{ steps.api.outputs.api_base_url }}
+      admin_api_base_url: ${{ steps.admin-api.outputs.admin_api_base_url }}
+      admin_token: ${{ steps.ci-auth.outputs.admin_token }}
     env:
       STACK_NAME: okra-project-preview-pr-${{ github.event.pull_request.number }}
 
@@ -147,13 +151,6 @@ jobs:
           echo "::add-mask::$ADMIN_TOKEN"
           echo "admin_token=$ADMIN_TOKEN" >> "$GITHUB_OUTPUT"
 
-      - name: Run integration tests against preview backend
-        env:
-          API_BASE_URL: ${{ steps.api.outputs.api_base_url }}
-          ADMIN_API_BASE_URL: ${{ steps.admin-api.outputs.admin_api_base_url }}
-          ADMIN_TOKEN: ${{ steps.ci-auth.outputs.admin_token }}
-        run: npm run test:integration
-
       - name: Build frontend
         run: npm run --workspace okra-frontend build
 
@@ -195,6 +192,32 @@ jobs:
               issue_number: context.payload.pull_request.number,
               body
             });
+
+  integration-tests:
+    if: github.event.action != 'closed'
+    needs: deploy-preview
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run integration tests
+        env:
+          API_BASE_URL: ${{ needs.deploy-preview.outputs.api_base_url }}
+          ADMIN_API_BASE_URL: ${{ needs.deploy-preview.outputs.admin_api_base_url }}
+          ADMIN_TOKEN: ${{ needs.deploy-preview.outputs.admin_token }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL_STAGING }}
+        run: npm run test:integration
 
   destroy-preview:
     if: github.event.action == 'closed'

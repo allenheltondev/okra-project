@@ -5,6 +5,7 @@ import {
   AdminAddUserToGroupCommand,
   InitiateAuthCommand
 } from '@aws-sdk/client-cognito-identity-provider';
+import { createDbClient } from '../../scripts/db-client.mjs';
 
 const client = new CognitoIdentityProviderClient();
 
@@ -64,6 +65,25 @@ export const handler = async () => {
   const accessToken = auth.AuthenticationResult?.AccessToken;
   if (!accessToken) {
     throw new Error(`Auth succeeded but no AccessToken — challenge: ${auth.ChallengeName ?? 'none'}`);
+  }
+
+  // 5. Upsert admin user in the database so route handlers can resolve the cognito sub
+  const tokenPayload = JSON.parse(
+    Buffer.from(accessToken.split('.')[1], 'base64url').toString()
+  );
+  const cognitoSub = tokenPayload.sub;
+
+  const db = await createDbClient();
+  await db.connect();
+  try {
+    await db.query(
+      `INSERT INTO admin_users (cognito_sub, email, display_name)
+       VALUES ($1, $2, $3)
+       ON CONFLICT (cognito_sub) DO UPDATE SET updated_at = now()`,
+      [cognitoSub, username, `CI Admin (${username})`]
+    );
+  } finally {
+    await db.end();
   }
 
   return { accessToken };

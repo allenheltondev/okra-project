@@ -5,6 +5,7 @@ import { poll, PollTimeoutError } from './integration/poll.mjs';
 import { readFileSync, readdirSync } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { dirname, join, extname } from 'node:path';
+import { createDbClient } from './db-client.mjs';
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -78,6 +79,57 @@ async function run() {
   // Track scenario artifacts for admin listing checks
   let approvalSubmissionId = null;
   let denialSubmissionId = null;
+  // Track all created photo IDs for cleanup
+  const createdPhotoIds = [];
+
+  /**
+   * Clean up all test data created during this run.
+   * Uses direct DB access to delete submissions, photos, and reviews by runPrefix.
+   */
+  async function cleanup() {
+    if (!process.env.DATABASE_URL) {
+      console.log('\n=== Cleanup skipped (no DATABASE_URL) ===');
+      return;
+    }
+    console.log('\n=== Cleanup ===');
+    const db = await createDbClient();
+    await db.connect();
+    try {
+      // Find all submissions created by this run via contributor_name prefix
+      const subRes = await db.query(
+        `SELECT id FROM submissions WHERE contributor_name LIKE $1`,
+        [`[${runPrefix}]%`]
+      );
+      const subIds = subRes.rows.map((r) => r.id);
+
+      if (subIds.length > 0) {
+        // Delete reviews, photos, then submissions (FK order)
+        await db.query(`DELETE FROM submission_reviews WHERE submission_id = ANY($1)`, [subIds]);
+        await db.query(`DELETE FROM submission_photos WHERE submission_id = ANY($1)`, [subIds]);
+        await db.query(`DELETE FROM submissions WHERE id = ANY($1)`, [subIds]);
+        console.log(`  ✓ Deleted ${subIds.length} submission(s) and associated records`);
+      }
+
+      // Clean up any orphaned photo staging rows from this run
+      if (createdPhotoIds.length > 0) {
+        const photoRes = await db.query(
+          `DELETE FROM submission_photos WHERE id = ANY($1) RETURNING id`,
+          [createdPhotoIds]
+        );
+        if (photoRes.rowCount > 0) {
+          console.log(`  ✓ Deleted ${photoRes.rowCount} orphaned photo(s)`);
+        }
+      }
+
+      if (subIds.length === 0 && createdPhotoIds.length === 0) {
+        console.log('  ✓ Nothing to clean up');
+      }
+    } catch (err) {
+      console.error(`  ✗ Cleanup failed: ${err.message}`);
+    } finally {
+      await db.end();
+    }
+  }
 
   // --- Public endpoint checks (Task 3.2) ---
   console.log('\n=== Public Endpoint Checks ===');
@@ -161,6 +213,7 @@ async function run() {
       });
       reporter.assert('approval', uploadRes.status >= 200 && uploadRes.status < 300, `PUT upload ${img.name} returns 2xx (got ${uploadRes.status})`);
       approvalPhotoIds.push(photoId);
+      createdPhotoIds.push(photoId);
     }
 
     // Step 3: Create submission
@@ -186,7 +239,7 @@ async function run() {
     // Step 4: Poll pending_review listing until submission appears with has_photos: true
     console.log('  Polling pending_review listing for approval submission...');
     const queueResult = await poll({
-      fn: () => adminApi.request('/submissions?status=pending_review'),
+      fn: () => adminApi.request('/submissions?status=pending_review&limit=100'),
       until: (res) => {
         if (!Array.isArray(res.json?.data)) return false;
         return res.json.data.some(
@@ -258,6 +311,7 @@ async function run() {
       });
       reporter.assert('denial', uploadRes.status >= 200 && uploadRes.status < 300, `PUT upload ${img.name} returns 2xx (got ${uploadRes.status})`);
       denialPhotoIds.push(photoId);
+      createdPhotoIds.push(photoId);
     }
 
     // Step 3: Create submission
@@ -282,7 +336,7 @@ async function run() {
     // Step 4: Poll pending_review listing until submission appears with has_photos: true
     console.log('  Polling pending_review listing for denial submission...');
     const queueResult = await poll({
-      fn: () => adminApi.request('/submissions?status=pending_review'),
+      fn: () => adminApi.request('/submissions?status=pending_review&limit=100'),
       until: (res) => {
         if (!Array.isArray(res.json?.data)) return false;
         return res.json.data.some(
@@ -357,10 +411,11 @@ async function run() {
 
   // --- Summary and exit (Task 3.7) ---
   const exitCode = reporter.summary();
+  await cleanup();
   process.exit(exitCode);
 }
 
-run().catch((err) => {
+run().catch(async (err) => {
   console.error('Fatal error in integration test runner:', err.message);
   process.exit(1);
 });
