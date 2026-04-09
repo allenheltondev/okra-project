@@ -71,10 +71,16 @@ jobs:
         working-directory: backend
         env:
           DATABASE_URL_STAGING: ${{ secrets.DATABASE_URL_STAGING }}
+          CI_ADMIN_USERNAME: ${{ secrets.CI_ADMIN_USERNAME }}
+          CI_ADMIN_PASSWORD: ${{ secrets.CI_ADMIN_PASSWORD }}
+          SHARED_USER_POOL_ID: ${{ secrets.SHARED_USER_POOL_ID_STAGING }}
+          SHARED_USER_POOL_CLIENT_ID: ${{ secrets.SHARED_USER_POOL_CLIENT_ID_STAGING }}
         run: |
           ESCAPED_DATABASE_URL=$(printf '%s' "$DATABASE_URL_STAGING" | sed 's/[&|]/\\&/g')
+          ESCAPED_CI_USERNAME=$(printf '%s' "$CI_ADMIN_USERNAME" | sed 's/[&|]/\\&/g')
+          ESCAPED_CI_PASSWORD=$(printf '%s' "$CI_ADMIN_PASSWORD" | sed 's/[&|]/\\&/g')
           export STACK_NAME_PREVIEW="$STACK_NAME"
-          sed "s|__DATABASE_URL__|${ESCAPED_DATABASE_URL}|g; s|__STACK_NAME_PREVIEW__|${STACK_NAME_PREVIEW}|g" samconfig.template.toml > samconfig.generated.toml
+          sed "s|__DATABASE_URL__|${ESCAPED_DATABASE_URL}|g; s|__STACK_NAME_PREVIEW__|${STACK_NAME_PREVIEW}|g; s|__SHARED_USER_POOL_ID__|${SHARED_USER_POOL_ID}|g; s|__SHARED_USER_POOL_CLIENT_ID__|${SHARED_USER_POOL_CLIENT_ID}|g; s|__CI_ADMIN_USERNAME__|${ESCAPED_CI_USERNAME}|g; s|__CI_ADMIN_PASSWORD__|${ESCAPED_CI_PASSWORD}|g" samconfig.template.toml > samconfig.generated.toml
 
       - name: Recover preview stack if stuck in ROLLBACK_COMPLETE
         shell: bash
@@ -106,9 +112,37 @@ jobs:
           API_BASE_URL="${API_ROOT%/}/api"
           echo "api_base_url=$API_BASE_URL" >> "$GITHUB_OUTPUT"
 
+      - name: Resolve preview Admin API base URL
+        id: admin-api
+        run: |
+          ADMIN_ROOT=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --query "Stacks[0].Outputs[?OutputKey=='AdminApiUrl'].OutputValue" \
+            --output text)
+          ADMIN_API_BASE_URL="${ADMIN_ROOT%/}/admin"
+          echo "admin_api_base_url=$ADMIN_API_BASE_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Get CI admin token from Lambda
+        id: ci-auth
+        run: |
+          FUNCTION_NAME=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --query "Stacks[0].Outputs[?OutputKey=='CiAuthTokenFunctionName'].OutputValue" \
+            --output text)
+          RESPONSE=$(aws lambda invoke \
+            --function-name "$FUNCTION_NAME" \
+            --payload '{}' \
+            --cli-binary-format raw-in-base64-out \
+            /dev/stdout 2>/dev/null)
+          ADMIN_TOKEN=$(echo "$RESPONSE" | jq -r '.accessToken')
+          echo "::add-mask::$ADMIN_TOKEN"
+          echo "admin_token=$ADMIN_TOKEN" >> "$GITHUB_OUTPUT"
+
       - name: Run integration tests against preview backend
         env:
           API_BASE_URL: ${{ steps.api.outputs.api_base_url }}
+          ADMIN_API_BASE_URL: ${{ steps.admin-api.outputs.admin_api_base_url }}
+          ADMIN_TOKEN: ${{ steps.ci-auth.outputs.admin_token }}
         run: npm run test:integration
 
       - name: Build frontend

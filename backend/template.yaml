@@ -14,6 +14,15 @@ Parameters:
   DatabaseUrl:
     Type: String
     Description: PostgreSQL connection string (e.g., from Neon)
+  CiAdminUsername:
+    Type: String
+    Default: ''
+    Description: CI admin username for integration test auth token Lambda
+  CiAdminPassword:
+    Type: String
+    Default: ''
+    NoEcho: true
+    Description: CI admin password for integration test auth token Lambda
 
 Globals:
   Function:
@@ -418,6 +427,34 @@ Resources:
         Variables:
           DATABASE_URL: !Ref DatabaseUrl
 
+  CiAuthTokenFunction:
+    Type: AWS::Serverless::Function
+    Metadata:
+      BuildMethod: esbuild
+      BuildProperties:
+        <<: *esbuild-properties
+        EntryPoints:
+          - src/handlers/ci-auth-token.mjs
+    Properties:
+      CodeUri: ./
+      Handler: src/handlers/ci-auth-token.handler
+      Timeout: 15
+      MemorySize: 256
+      Environment:
+        Variables:
+          CI_ADMIN_USERNAME: !Ref CiAdminUsername
+          CI_ADMIN_PASSWORD: !Ref CiAdminPassword
+      Policies:
+        - Version: '2012-10-17'
+          Statement:
+            - Effect: Allow
+              Action:
+                - cognito-idp:AdminCreateUser
+                - cognito-idp:AdminSetUserPassword
+                - cognito-idp:AdminAddUserToGroup
+                - cognito-idp:InitiateAuth
+              Resource: !Sub 'arn:aws:cognito-idp:${AWS::Region}:${AWS::AccountId}:userpool/${SharedUserPoolId}'
+
 Outputs:
   HttpApiUrl:
     Description: Base URL for the HTTP API
@@ -449,3 +486,6 @@ Outputs:
   MediaDistributionDomainName:
     Description: CloudFront domain for media assets (photos)
     Value: !GetAtt MediaDistribution.DomainName
+  CiAuthTokenFunctionName:
+    Description: Lambda function name for CI auth token generation
+    Value: !Ref CiAuthTokenFunction
