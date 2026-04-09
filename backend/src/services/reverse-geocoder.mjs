@@ -1,13 +1,10 @@
 import whichPolygon from 'which-polygon';
 import { feature } from 'topojson-client';
-import { createRequire } from 'node:module';
-
-const require = createRequire(import.meta.url);
+import topology from 'world-atlas/countries-110m.json';
 
 let query = null;
 
 try {
-  const topology = require('world-atlas/countries-110m.json');
   const geojson = feature(topology, topology.objects.countries);
   query = whichPolygon(geojson);
 } catch (err) {

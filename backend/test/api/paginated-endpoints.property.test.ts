@@ -230,7 +230,7 @@ describe('Property 9: Invalid Cursor Rejection', () => {
         process.env.MEDIA_BUCKET_NAME = 'test-bucket';
 
         const res = await adminHandler(
-          makeRestApiEvent('/admin/submissions/review-queue', 'GET', {
+          makeRestApiEvent('/submissions/review-queue', 'GET', {
             queryStringParameters: { cursor: invalidCursor },
           })
         );
@@ -372,7 +372,7 @@ describe('Property 10: Admin Review Queue Pagination Completeness with Photo Rea
             if (cursor) qsp.cursor = cursor;
 
             const res = await adminHandler(
-              makeRestApiEvent('/admin/submissions/review-queue', 'GET', {
+              makeRestApiEvent('/submissions/review-queue', 'GET', {
                 queryStringParameters: qsp,
               })
             );
@@ -531,7 +531,7 @@ describe('Property 11: Admin Review Queue Response Shape', () => {
           resetMocks();
 
           const res = await adminHandler(
-            makeRestApiEvent('/admin/submissions/review-queue', 'GET', {
+            makeRestApiEvent('/submissions/review-queue', 'GET', {
               queryStringParameters: { limit: '100' },
             })
           );
@@ -669,7 +669,7 @@ describe('Property 12: Admin Review Queue Photo Ordering and Ready Filter', () =
           resetMocks();
 
           const res = await adminHandler(
-            makeRestApiEvent('/admin/submissions/review-queue', 'GET', {
+            makeRestApiEvent('/submissions/review-queue', 'GET', {
               queryStringParameters: { limit: '100' },
             })
           );
@@ -791,7 +791,7 @@ describe('Property 13: Error Response Shape Consistency', () => {
         process.env.MEDIA_BUCKET_NAME = 'test-bucket';
 
         const res = await adminHandler(
-          makeRestApiEvent('/admin/submissions/review-queue', 'GET', { queryStringParameters })
+          makeRestApiEvent('/submissions/review-queue', 'GET', { queryStringParameters })
         );
         const { statusCode, body } = parseRes(res);
 
@@ -819,7 +819,7 @@ describe('Property 13: Error Response Shape Consistency', () => {
           });
 
           const res = await adminHandler(
-            makeRestApiEvent('/admin/submissions/review-queue', 'GET', { queryStringParameters: null })
+            makeRestApiEvent('/submissions/review-queue', 'GET', { queryStringParameters: null })
           );
           const { statusCode, body } = parseRes(res);
 

@@ -153,7 +153,7 @@ describe('GET /admin/submissions', () => {
 
   it('defaults to status=pending_review and limit=20', async () => {
     setupListMocks();
-    const res = await handler(makeRestApiEvent('/admin/submissions'));
+    const res = await handler(makeRestApiEvent('/submissions'));
     const { statusCode, body } = parseRes(res);
     expect(statusCode).toBe(200);
     expect(body).toEqual({ data: [], cursor: null });
@@ -168,7 +168,7 @@ describe('GET /admin/submissions', () => {
   it('accepts valid status filter: approved', async () => {
     setupListMocks();
     const res = await handler(
-      makeRestApiEvent('/admin/submissions', 'GET', { queryStringParameters: { status: 'approved' } })
+      makeRestApiEvent('/submissions', 'GET', { queryStringParameters: { status: 'approved' } })
     );
     expect(parseRes(res).statusCode).toBe(200);
     const queryCall = mockClient.query.mock.calls.find(
@@ -180,14 +180,14 @@ describe('GET /admin/submissions', () => {
   it('accepts valid status filter: denied', async () => {
     setupListMocks();
     const res = await handler(
-      makeRestApiEvent('/admin/submissions', 'GET', { queryStringParameters: { status: 'denied' } })
+      makeRestApiEvent('/submissions', 'GET', { queryStringParameters: { status: 'denied' } })
     );
     expect(parseRes(res).statusCode).toBe(200);
   });
 
   it('returns INVALID_STATUS for bad status value', async () => {
     const res = await handler(
-      makeRestApiEvent('/admin/submissions', 'GET', { queryStringParameters: { status: 'bogus' } })
+      makeRestApiEvent('/submissions', 'GET', { queryStringParameters: { status: 'bogus' } })
     );
     const { statusCode, body } = parseRes(res);
     expect(statusCode).toBe(400);
@@ -196,7 +196,7 @@ describe('GET /admin/submissions', () => {
 
   it('returns INVALID_LIMIT for zero limit', async () => {
     const res = await handler(
-      makeRestApiEvent('/admin/submissions', 'GET', { queryStringParameters: { limit: '0' } })
+      makeRestApiEvent('/submissions', 'GET', { queryStringParameters: { limit: '0' } })
     );
     const { statusCode, body } = parseRes(res);
     expect(statusCode).toBe(400);
@@ -205,14 +205,14 @@ describe('GET /admin/submissions', () => {
 
   it('returns INVALID_LIMIT for negative limit', async () => {
     const res = await handler(
-      makeRestApiEvent('/admin/submissions', 'GET', { queryStringParameters: { limit: '-5' } })
+      makeRestApiEvent('/submissions', 'GET', { queryStringParameters: { limit: '-5' } })
     );
     expect(parseRes(res).body.error.code).toBe('INVALID_LIMIT');
   });
 
   it('returns INVALID_LIMIT for non-numeric limit', async () => {
     const res = await handler(
-      makeRestApiEvent('/admin/submissions', 'GET', { queryStringParameters: { limit: 'abc' } })
+      makeRestApiEvent('/submissions', 'GET', { queryStringParameters: { limit: 'abc' } })
     );
     expect(parseRes(res).body.error.code).toBe('INVALID_LIMIT');
   });
@@ -220,7 +220,7 @@ describe('GET /admin/submissions', () => {
   it('clamps limit above 100 to 100', async () => {
     setupListMocks();
     await handler(
-      makeRestApiEvent('/admin/submissions', 'GET', { queryStringParameters: { limit: '200' } })
+      makeRestApiEvent('/submissions', 'GET', { queryStringParameters: { limit: '200' } })
     );
     const queryCall = mockClient.query.mock.calls.find(
       (c: any[]) => typeof c[0] === 'string' && c[0].includes('FROM submissions')
@@ -230,21 +230,21 @@ describe('GET /admin/submissions', () => {
 
   it('returns INVALID_CURSOR for malformed cursor', async () => {
     const res = await handler(
-      makeRestApiEvent('/admin/submissions', 'GET', { queryStringParameters: { cursor: 'not-valid' } })
+      makeRestApiEvent('/submissions', 'GET', { queryStringParameters: { cursor: 'not-valid' } })
     );
     expect(parseRes(res).body.error.code).toBe('INVALID_CURSOR');
   });
 
   it('returns empty result set as { data: [], cursor: null }', async () => {
     setupListMocks([], []);
-    const { body } = parseRes(await handler(makeRestApiEvent('/admin/submissions')));
+    const { body } = parseRes(await handler(makeRestApiEvent('/submissions')));
     expect(body.data).toEqual([]);
     expect(body.cursor).toBeNull();
   });
 
   it('returns response with all required fields', async () => {
     setupListMocks([makeSubmissionRow()], [{ submission_id: '550e8400-e29b-41d4-a716-446655440001', original_s3_key: 'photos/abc.jpg' }]);
-    const { body } = parseRes(await handler(makeRestApiEvent('/admin/submissions')));
+    const { body } = parseRes(await handler(makeRestApiEvent('/submissions')));
     expect(body.data).toHaveLength(1);
     const item = body.data[0];
     for (const field of ['id','contributor_name','story_text','raw_location_text','privacy_mode','display_lat','display_lng','status','created_at','photo_count','has_photos','photos']) {
@@ -256,7 +256,7 @@ describe('GET /admin/submissions', () => {
 
   it('cursor is null on last page', async () => {
     setupListMocks([makeSubmissionRow()], []);
-    const { body } = parseRes(await handler(makeRestApiEvent('/admin/submissions')));
+    const { body } = parseRes(await handler(makeRestApiEvent('/submissions')));
     expect(body.cursor).toBeNull();
   });
 });
@@ -268,7 +268,7 @@ describe('GET /admin/submissions', () => {
 describe('POST /admin/submissions/:id/statuses — status field validation', () => {
   it('returns INVALID_ID for non-UUID submission ID', async () => {
     const res = await handler(
-      makeRestApiEvent('/admin/submissions/not-a-uuid/statuses', 'POST', {
+      makeRestApiEvent('/submissions/not-a-uuid/statuses', 'POST', {
         pathParameters: { id: 'not-a-uuid' }, body: { status: 'approved' },
       })
     );
@@ -279,7 +279,7 @@ describe('POST /admin/submissions/:id/statuses — status field validation', () 
 
   it('returns INVALID_ACTION for missing status field', async () => {
     const res = await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: {},
       })
     );
@@ -290,7 +290,7 @@ describe('POST /admin/submissions/:id/statuses — status field validation', () 
 
   it('returns INVALID_ACTION for invalid status value', async () => {
     const res = await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'pending_review' },
       })
     );
@@ -299,7 +299,7 @@ describe('POST /admin/submissions/:id/statuses — status field validation', () 
 
   it('returns INVALID_ACTION for empty string status', async () => {
     const res = await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: '' },
       })
     );
@@ -328,7 +328,7 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
   it('returns 200 with updated submission on successful approval', async () => {
     setupApproveMocks();
     const { statusCode, body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'approved' },
       })
     ));
@@ -339,7 +339,7 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
 
   it('returns INVALID_COORDINATES for partial coordinates (lat only)', async () => {
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'approved', display_lat: 34.05 },
       })
     ));
@@ -348,7 +348,7 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
 
   it('returns INVALID_COORDINATES for partial coordinates (lng only)', async () => {
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'approved', display_lng: -118.24 },
       })
     ));
@@ -357,7 +357,7 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
 
   it('returns INVALID_COORDINATES for out-of-bounds lat', async () => {
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'approved', display_lat: 91, display_lng: 0 },
       })
     ));
@@ -366,7 +366,7 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
 
   it('returns INVALID_COORDINATES for out-of-bounds lng', async () => {
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'approved', display_lat: 0, display_lng: -181 },
       })
     ));
@@ -379,7 +379,7 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
       'COUNT(*)': { rows: [{ count: 0 }] },
     };
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'approved' },
       })
     ));
@@ -391,7 +391,7 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
       'SELECT id, status FROM submissions': { rows: [] },
     };
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'approved' },
       })
     ));
@@ -403,7 +403,7 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
       'SELECT id, status FROM submissions': { rows: [{ id: '550e8400-e29b-41d4-a716-446655440001', status: 'approved' }] },
     };
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'approved' },
       })
     ));
@@ -413,7 +413,7 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
   it('updates coordinates when pin adjustment is provided', async () => {
     setupApproveMocks({ display_lat: 40.0, display_lng: -74.0 });
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'approved', display_lat: 40.0, display_lng: -74.0 },
       })
     ));
@@ -428,7 +428,7 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
   it('stores review_notes correctly', async () => {
     setupApproveMocks({ review_notes: 'Looks good!' });
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'approved', review_notes: 'Looks good!' },
       })
     ));
@@ -438,7 +438,7 @@ describe('POST /admin/submissions/:id/statuses — approval', () => {
   it('includes SUSPICIOUS_COORDINATES warning when final coords are (0,0)', async () => {
     setupApproveMocks({ display_lat: 0, display_lng: 0 });
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'approved', display_lat: 0, display_lng: 0 },
       })
     ));
@@ -474,7 +474,7 @@ describe('POST /admin/submissions/:id/statuses — approval reverse geocoding', 
   it('calls resolveCountry and stores the returned value', async () => {
     setupApproveMocks();
     const { statusCode } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' },
         body: { status: 'approved' },
       })
@@ -493,7 +493,7 @@ describe('POST /admin/submissions/:id/statuses — approval reverse geocoding', 
     setupApproveMocks();
     const warnSpy = vi.spyOn(console, 'warn').mockImplementation(() => {});
     const { statusCode } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' },
         body: { status: 'approved' },
       })
@@ -513,7 +513,7 @@ describe('POST /admin/submissions/:id/statuses — approval reverse geocoding', 
     setupApproveMocks();
     const errorSpy = vi.spyOn(console, 'error').mockImplementation(() => {});
     const { statusCode, body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' },
         body: { status: 'approved' },
       })
@@ -548,7 +548,7 @@ describe('POST /admin/submissions/:id/statuses — denial', () => {
   it('returns 200 with updated submission on successful denial', async () => {
     setupDenyMocks();
     const { statusCode, body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied', reason: 'spam' },
       })
     ));
@@ -558,7 +558,7 @@ describe('POST /admin/submissions/:id/statuses — denial', () => {
 
   it('returns INVALID_REASON for missing reason', async () => {
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied' },
       })
     ));
@@ -567,7 +567,7 @@ describe('POST /admin/submissions/:id/statuses — denial', () => {
 
   it('returns INVALID_REASON for invalid reason value', async () => {
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied', reason: 'not_valid' },
       })
     ));
@@ -576,7 +576,7 @@ describe('POST /admin/submissions/:id/statuses — denial', () => {
 
   it('returns MISSING_NOTES when reason=other and notes empty', async () => {
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied', reason: 'other', review_notes: '' },
       })
     ));
@@ -585,7 +585,7 @@ describe('POST /admin/submissions/:id/statuses — denial', () => {
 
   it('returns MISSING_NOTES when reason=other and notes missing', async () => {
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied', reason: 'other' },
       })
     ));
@@ -601,7 +601,7 @@ describe('POST /admin/submissions/:id/statuses — denial', () => {
       'ROLLBACK': { rows: [] },
     };
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied', reason: 'spam' },
       })
     ));
@@ -617,7 +617,7 @@ describe('POST /admin/submissions/:id/statuses — denial', () => {
       'ROLLBACK': { rows: [] },
     };
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied', reason: 'spam' },
       })
     ));
@@ -627,7 +627,7 @@ describe('POST /admin/submissions/:id/statuses — denial', () => {
   it('stores review_notes for spam reason', async () => {
     setupDenyMocks({ review_notes: 'Obvious spam' });
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied', reason: 'spam', review_notes: 'Obvious spam' },
       })
     ));
@@ -637,7 +637,7 @@ describe('POST /admin/submissions/:id/statuses — denial', () => {
   it('stores review_notes for invalid_location reason', async () => {
     setupDenyMocks({ review_notes: 'Wrong city' });
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied', reason: 'invalid_location', review_notes: 'Wrong city' },
       })
     ));
@@ -647,7 +647,7 @@ describe('POST /admin/submissions/:id/statuses — denial', () => {
   it('stores review_notes for other reason', async () => {
     setupDenyMocks({ review_notes: 'Custom reason details' });
     const { body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied', reason: 'other', review_notes: 'Custom reason details' },
       })
     ));
@@ -674,7 +674,7 @@ describe('POST /admin/submissions/:id/statuses — denial EventBridge publish', 
   it('publishes EventBridge event after successful denial', async () => {
     setupDenyMocks();
     const { statusCode, body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied', reason: 'spam' },
       })
     ));
@@ -694,7 +694,7 @@ describe('POST /admin/submissions/:id/statuses — denial EventBridge publish', 
     mockEventBridgeSend.mockRejectedValueOnce(new Error('EventBridge unavailable'));
 
     const { statusCode, body } = parseRes(await handler(
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied', reason: 'spam' },
       })
     ));
@@ -711,19 +711,19 @@ describe('POST /admin/submissions/:id/statuses — denial EventBridge publish', 
 describe('Error response consistency', () => {
   it('all error responses match { error: { code, message } } shape', async () => {
     const errorEvents = [
-      makeRestApiEvent('/admin/submissions', 'GET', { queryStringParameters: { status: 'bad' } }),
-      makeRestApiEvent('/admin/submissions', 'GET', { queryStringParameters: { limit: '-1' } }),
-      makeRestApiEvent('/admin/submissions', 'GET', { queryStringParameters: { cursor: '!!!invalid!!!' } }),
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions', 'GET', { queryStringParameters: { status: 'bad' } }),
+      makeRestApiEvent('/submissions', 'GET', { queryStringParameters: { limit: '-1' } }),
+      makeRestApiEvent('/submissions', 'GET', { queryStringParameters: { cursor: '!!!invalid!!!' } }),
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: {},
       }),
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'approved', display_lat: 10 },
       }),
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied' },
       }),
-      makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
+      makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440001/statuses', 'POST', {
         pathParameters: { id: '550e8400-e29b-41d4-a716-446655440001' }, body: { status: 'denied', reason: 'other' },
       }),
     ];
@@ -746,7 +746,7 @@ describe('Error response consistency', () => {
     queryResponses = {
       'FROM submissions': () => { throw new Error('Connection refused: ECONNREFUSED'); },
     };
-    const { statusCode, body } = parseRes(await handler(makeRestApiEvent('/admin/submissions')));
+    const { statusCode, body } = parseRes(await handler(makeRestApiEvent('/submissions')));
     expect(statusCode).toBe(500);
     expect(body.error.code).toBe('INTERNAL_ERROR');
     expect(body.error.message).not.toContain('ECONNREFUSED');
@@ -790,7 +790,7 @@ describe('GET /admin/submissions/review-queue', () => {
       { submission_id: sub1.id, original_s3_key: 'photos/abc.jpg' },
     ]);
 
-    const res = await handler(makeRestApiEvent('/admin/submissions/review-queue'));
+    const res = await handler(makeRestApiEvent('/submissions/review-queue'));
     const { statusCode, body } = parseRes(res);
 
     expect(statusCode).toBe(200);
@@ -805,7 +805,7 @@ describe('GET /admin/submissions/review-queue', () => {
     // so if the DB returns no rows, the response should be empty.
     setupReviewQueueMocks([], []);
 
-    const res = await handler(makeRestApiEvent('/admin/submissions/review-queue'));
+    const res = await handler(makeRestApiEvent('/submissions/review-queue'));
     const { statusCode, body } = parseRes(res);
 
     expect(statusCode).toBe(200);
@@ -821,7 +821,7 @@ describe('GET /admin/submissions/review-queue', () => {
       { submission_id: sub1.id, original_s3_key: 'photos/ready2.jpg' },
     ]);
 
-    const res = await handler(makeRestApiEvent('/admin/submissions/review-queue'));
+    const res = await handler(makeRestApiEvent('/submissions/review-queue'));
     const { body } = parseRes(res);
 
     expect(body.data[0].photos).toHaveLength(2);
@@ -838,7 +838,7 @@ describe('GET /admin/submissions/review-queue', () => {
       { submission_id: sub1.id, original_s3_key: 'photos/abc.jpg' },
     ]);
 
-    const res = await handler(makeRestApiEvent('/admin/submissions/review-queue'));
+    const res = await handler(makeRestApiEvent('/submissions/review-queue'));
     const { body } = parseRes(res);
 
     expect(body.data).toHaveLength(1);
@@ -860,7 +860,7 @@ describe('GET /admin/submissions/review-queue', () => {
     const sub1 = makeReviewQueueSubmissionRow();
     setupReviewQueueMocks([sub1], []);
 
-    const res = await handler(makeRestApiEvent('/admin/submissions/review-queue'));
+    const res = await handler(makeRestApiEvent('/submissions/review-queue'));
     const { body } = parseRes(res);
 
     expect(body.data[0].photo_count).toBe(0);
@@ -874,7 +874,7 @@ describe('GET /admin/submissions/review-queue', () => {
       'FROM submissions': { rows: [], rowCount: 0 },
     };
 
-    const res = await handler(makeRestApiEvent('/admin/submissions'));
+    const res = await handler(makeRestApiEvent('/submissions'));
     const { statusCode, body } = parseRes(res);
 
     expect(statusCode).toBe(200);
@@ -884,7 +884,7 @@ describe('GET /admin/submissions/review-queue', () => {
   // ─── Validates: Requirement 7.5 — Limit validation on review queue ──
   it('returns INVALID_LIMIT for zero limit', async () => {
     const res = await handler(
-      makeRestApiEvent('/admin/submissions/review-queue', 'GET', {
+      makeRestApiEvent('/submissions/review-queue', 'GET', {
         queryStringParameters: { limit: '0' },
       })
     );
@@ -895,7 +895,7 @@ describe('GET /admin/submissions/review-queue', () => {
 
   it('returns INVALID_LIMIT for negative limit', async () => {
     const res = await handler(
-      makeRestApiEvent('/admin/submissions/review-queue', 'GET', {
+      makeRestApiEvent('/submissions/review-queue', 'GET', {
         queryStringParameters: { limit: '-5' },
       })
     );
@@ -904,7 +904,7 @@ describe('GET /admin/submissions/review-queue', () => {
 
   it('returns INVALID_LIMIT for non-numeric limit', async () => {
     const res = await handler(
-      makeRestApiEvent('/admin/submissions/review-queue', 'GET', {
+      makeRestApiEvent('/submissions/review-queue', 'GET', {
         queryStringParameters: { limit: 'abc' },
       })
     );
@@ -913,7 +913,7 @@ describe('GET /admin/submissions/review-queue', () => {
 
   it('returns INVALID_LIMIT for decimal limit', async () => {
     const res = await handler(
-      makeRestApiEvent('/admin/submissions/review-queue', 'GET', {
+      makeRestApiEvent('/submissions/review-queue', 'GET', {
         queryStringParameters: { limit: '3.7' },
       })
     );
@@ -925,7 +925,7 @@ describe('GET /admin/submissions/review-queue', () => {
     setupReviewQueueMocks([sub1], []);
 
     await handler(
-      makeRestApiEvent('/admin/submissions/review-queue', 'GET', {
+      makeRestApiEvent('/submissions/review-queue', 'GET', {
         queryStringParameters: { limit: '200' },
       })
     );
@@ -941,7 +941,7 @@ describe('GET /admin/submissions/review-queue', () => {
   // ─── Validates: Requirement 7.6 — Cursor validation on review queue ──
   it('returns INVALID_CURSOR for malformed cursor', async () => {
     const res = await handler(
-      makeRestApiEvent('/admin/submissions/review-queue', 'GET', {
+      makeRestApiEvent('/submissions/review-queue', 'GET', {
         queryStringParameters: { cursor: 'not-valid' },
       })
     );
@@ -952,7 +952,7 @@ describe('GET /admin/submissions/review-queue', () => {
   it('returns 500 INTERNAL_ERROR when MEDIA_BUCKET_NAME is not set', async () => {
     delete process.env.MEDIA_BUCKET_NAME;
 
-    const res = await handler(makeRestApiEvent('/admin/submissions/review-queue'));
+    const res = await handler(makeRestApiEvent('/submissions/review-queue'));
     const { statusCode, body } = parseRes(res);
 
     expect(statusCode).toBe(500);
@@ -965,7 +965,7 @@ describe('GET /admin/submissions/review-queue', () => {
     setupReviewQueueMocks([], []);
 
     const { body } = parseRes(
-      await handler(makeRestApiEvent('/admin/submissions/review-queue'))
+      await handler(makeRestApiEvent('/submissions/review-queue'))
     );
     expect(body.data).toEqual([]);
     expect(body.cursor).toBeNull();
@@ -977,7 +977,7 @@ describe('GET /admin/submissions/review-queue', () => {
     setupReviewQueueMocks([sub1], []);
 
     const { body } = parseRes(
-      await handler(makeRestApiEvent('/admin/submissions/review-queue'))
+      await handler(makeRestApiEvent('/submissions/review-queue'))
     );
     expect(body.cursor).toBeNull();
   });
@@ -1003,7 +1003,7 @@ describe('GET /admin/submissions/review-queue', () => {
     ]);
 
     const { body } = parseRes(
-      await handler(makeRestApiEvent('/admin/submissions/review-queue'))
+      await handler(makeRestApiEvent('/submissions/review-queue'))
     );
 
     expect(body.data).toHaveLength(2);

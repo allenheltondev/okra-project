@@ -67,9 +67,15 @@ jobs:
         working-directory: backend
         env:
           DATABASE_URL_PROD: ${{ secrets.DATABASE_URL_PROD }}
+          CI_ADMIN_USERNAME: ${{ secrets.CI_ADMIN_USERNAME }}
+          CI_ADMIN_PASSWORD: ${{ secrets.CI_ADMIN_PASSWORD }}
+          SHARED_USER_POOL_ID: ${{ secrets.SHARED_USER_POOL_ID_PROD }}
+          SHARED_USER_POOL_CLIENT_ID: ${{ secrets.SHARED_USER_POOL_CLIENT_ID_PROD }}
         run: |
           ESCAPED_DATABASE_URL=$(printf '%s' "$DATABASE_URL_PROD" | sed 's/[&|]/\\&/g')
-          sed "s|__DATABASE_URL__|${ESCAPED_DATABASE_URL}|g" samconfig.template.toml > samconfig.generated.toml
+          ESCAPED_CI_USERNAME=$(printf '%s' "$CI_ADMIN_USERNAME" | sed 's/[&|]/\\&/g')
+          ESCAPED_CI_PASSWORD=$(printf '%s' "$CI_ADMIN_PASSWORD" | sed 's/[&|]/\\&/g')
+          sed "s|__DATABASE_URL__|${ESCAPED_DATABASE_URL}|g; s|__SHARED_USER_POOL_ID__|${SHARED_USER_POOL_ID}|g; s|__SHARED_USER_POOL_CLIENT_ID__|${SHARED_USER_POOL_CLIENT_ID}|g; s|__CI_ADMIN_USERNAME__|${ESCAPED_CI_USERNAME}|g; s|__CI_ADMIN_PASSWORD__|${ESCAPED_CI_PASSWORD}|g" samconfig.template.toml > samconfig.generated.toml
 
       - name: Run production migrations
         env:

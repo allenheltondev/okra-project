@@ -231,7 +231,7 @@ describe('Property 1: Pagination Completeness', () => {
             if (cursor) qsp.cursor = cursor;
 
             const res = await handler(
-              makeRestApiEvent('/admin/submissions', 'GET', {
+              makeRestApiEvent('/submissions', 'GET', {
                 queryStringParameters: qsp,
               })
             );
@@ -302,7 +302,7 @@ describe('Property 2: Limit Parameter Validation', () => {
           });
 
           const res = await handler(
-            makeRestApiEvent('/admin/submissions', 'GET', {
+            makeRestApiEvent('/submissions', 'GET', {
               queryStringParameters: { limit: String(limit) },
             })
           );
@@ -336,7 +336,7 @@ describe('Property 2: Limit Parameter Validation', () => {
           });
 
           const res = await handler(
-            makeRestApiEvent('/admin/submissions', 'GET', {
+            makeRestApiEvent('/submissions', 'GET', {
               queryStringParameters: { limit: String(limit) },
             })
           );
@@ -355,7 +355,7 @@ describe('Property 2: Limit Parameter Validation', () => {
         async (limit) => {
           queryCalls = [];
           const res = await handler(
-            makeRestApiEvent('/admin/submissions', 'GET', {
+            makeRestApiEvent('/submissions', 'GET', {
               queryStringParameters: { limit: String(limit) },
             })
           );
@@ -375,7 +375,7 @@ describe('Property 2: Limit Parameter Validation', () => {
         async (limit) => {
           queryCalls = [];
           const res = await handler(
-            makeRestApiEvent('/admin/submissions', 'GET', {
+            makeRestApiEvent('/submissions', 'GET', {
               queryStringParameters: { limit },
             })
           );
@@ -406,7 +406,7 @@ describe('Property 3: Invalid Query Parameter Rejection', () => {
         async (status) => {
           queryCalls = [];
           const res = await handler(
-            makeRestApiEvent('/admin/submissions', 'GET', {
+            makeRestApiEvent('/submissions', 'GET', {
               queryStringParameters: { status },
             })
           );
@@ -462,7 +462,7 @@ describe('Property 3: Invalid Query Parameter Rejection', () => {
           });
 
           const res = await handler(
-            makeRestApiEvent('/admin/submissions', 'GET', {
+            makeRestApiEvent('/submissions', 'GET', {
               queryStringParameters: { cursor },
             })
           );
@@ -537,7 +537,7 @@ describe('Property 4: List Response Shape Completeness', () => {
             return { rows: [], rowCount: 0 };
           });
 
-          const res = await handler(makeRestApiEvent('/admin/submissions'));
+          const res = await handler(makeRestApiEvent('/submissions'));
           const { statusCode, body } = parseRes(res);
           expect(statusCode).toBe(200);
 
@@ -642,7 +642,7 @@ describe('Property 5: Transactional Review Integrity', () => {
           });
 
           const statusValue = action === 'approve' ? 'approved' : 'denied';
-          const path = `/admin/submissions/${submissionId}/statuses`;
+          const path = `/submissions/${submissionId}/statuses`;
           const body =
             action === 'deny'
               ? { status: 'denied', reason: 'spam', review_notes: 'test' }
@@ -766,7 +766,7 @@ describe('Property 6: State Conflict Detection', () => {
             return { rows: [], rowCount: 0 };
           });
 
-          const path = `/admin/submissions/${submissionId}/statuses`;
+          const path = `/submissions/${submissionId}/statuses`;
           const body =
             action === 'deny'
               ? { status: 'denied', reason: 'spam', review_notes: 'test' }
@@ -871,7 +871,7 @@ describe('Property 7: Review Notes Round-Trip', () => {
             return { rows: [], rowCount: 0 };
           });
 
-          const path = `/admin/submissions/${submissionId}/statuses`;
+          const path = `/submissions/${submissionId}/statuses`;
           const body =
             action === 'deny'
               ? { status: 'denied', reason: 'spam', review_notes: notes }
@@ -925,7 +925,7 @@ describe('Property 8: Coordinate Validation', () => {
         async (coords) => {
           queryCalls = [];
           const res = await handler(
-            makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440003/statuses', 'POST', {
+            makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440003/statuses', 'POST', {
               pathParameters: { id: '550e8400-e29b-41d4-a716-446655440003' },
               body: { status: 'approved', ...coords },
             })
@@ -967,7 +967,7 @@ describe('Property 8: Coordinate Validation', () => {
         async (coords) => {
           queryCalls = [];
           const res = await handler(
-            makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440003/statuses', 'POST', {
+            makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440003/statuses', 'POST', {
               pathParameters: { id: '550e8400-e29b-41d4-a716-446655440003' },
               body: { status: 'approved', ...coords },
             })
@@ -1031,7 +1031,7 @@ describe('Property 8: Coordinate Validation', () => {
           });
 
           const res = await handler(
-            makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440003/statuses', 'POST', {
+            makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440003/statuses', 'POST', {
               pathParameters: { id: '550e8400-e29b-41d4-a716-446655440003' },
               body: { status: 'approved', display_lat: lat, display_lng: lng },
             })
@@ -1100,7 +1100,7 @@ describe('Property 8: Coordinate Validation', () => {
       });
 
       const res = await handler(
-        makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440003/statuses', 'POST', {
+        makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440003/statuses', 'POST', {
           pathParameters: { id: '550e8400-e29b-41d4-a716-446655440003' },
           body: { status: 'approved', ...coords },
         })
@@ -1136,7 +1136,7 @@ describe('Property 9: Denial Reason Validation', () => {
         async (reason) => {
           queryCalls = [];
           const res = await handler(
-            makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440003/statuses', 'POST', {
+            makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440003/statuses', 'POST', {
               pathParameters: { id: '550e8400-e29b-41d4-a716-446655440003' },
               body: { status: 'denied', reason, review_notes: 'some notes' },
             })
@@ -1167,7 +1167,7 @@ describe('Property 9: Denial Reason Validation', () => {
             body.review_notes = notes;
           }
           const res = await handler(
-            makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440003/statuses', 'POST', {
+            makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440003/statuses', 'POST', {
               pathParameters: { id: '550e8400-e29b-41d4-a716-446655440003' },
               body,
             })
@@ -1227,7 +1227,7 @@ describe('Property 9: Denial Reason Validation', () => {
           });
 
           const res = await handler(
-            makeRestApiEvent('/admin/submissions/550e8400-e29b-41d4-a716-446655440003/statuses', 'POST', {
+            makeRestApiEvent('/submissions/550e8400-e29b-41d4-a716-446655440003/statuses', 'POST', {
               pathParameters: { id: '550e8400-e29b-41d4-a716-446655440003' },
               body: { status: 'denied', reason, review_notes: notes },
             })
@@ -1298,7 +1298,7 @@ describe('Property 10: Photo Requirement for Approval', () => {
           });
 
           const res = await handler(
-            makeRestApiEvent(`/admin/submissions/${submissionId}/statuses`, 'POST', {
+            makeRestApiEvent(`/submissions/${submissionId}/statuses`, 'POST', {
               pathParameters: { id: submissionId },
               body: { status: 'approved' },
             })
@@ -1376,7 +1376,7 @@ describe('Property 11: Suspicious Coordinates Warning', () => {
           });
 
           const res = await handler(
-            makeRestApiEvent(`/admin/submissions/${submissionId}/statuses`, 'POST', {
+            makeRestApiEvent(`/submissions/${submissionId}/statuses`, 'POST', {
               pathParameters: { id: submissionId },
               body: { status: 'approved', display_lat: lat, display_lng: lng },
             })
@@ -1418,25 +1418,25 @@ describe('Property 12: Error Response Shape Consistency', () => {
         fc.oneof(
           // Invalid status
           fc.string({ minLength: 1 }).filter((s) => !validStatuses.includes(s)).map((s) => ({
-            path: '/admin/submissions',
+            path: '/submissions',
             method: 'GET' as const,
             options: { queryStringParameters: { status: s } },
           })),
           // Invalid limit (zero/negative)
           fc.integer({ min: -1000, max: 0 }).map((n) => ({
-            path: '/admin/submissions',
+            path: '/submissions',
             method: 'GET' as const,
             options: { queryStringParameters: { limit: String(n) } },
           })),
           // Invalid limit (non-numeric)
           fc.string({ minLength: 1 }).filter((s) => isNaN(Number(s))).map((s) => ({
-            path: '/admin/submissions',
+            path: '/submissions',
             method: 'GET' as const,
             options: { queryStringParameters: { limit: s } },
           })),
           // Partial coordinates
           fc.constant({
-            path: '/admin/submissions/550e8400-e29b-41d4-a716-446655440003/statuses',
+            path: '/submissions/550e8400-e29b-41d4-a716-446655440003/statuses',
             method: 'POST' as const,
             options: {
               pathParameters: { id: '550e8400-e29b-41d4-a716-446655440003' },
@@ -1445,7 +1445,7 @@ describe('Property 12: Error Response Shape Consistency', () => {
           }),
           // Out-of-bounds coordinates
           fc.constant({
-            path: '/admin/submissions/550e8400-e29b-41d4-a716-446655440003/statuses',
+            path: '/submissions/550e8400-e29b-41d4-a716-446655440003/statuses',
             method: 'POST' as const,
             options: {
               pathParameters: { id: '550e8400-e29b-41d4-a716-446655440003' },
@@ -1454,7 +1454,7 @@ describe('Property 12: Error Response Shape Consistency', () => {
           }),
           // Invalid reason
           fc.string({ minLength: 1 }).filter((s) => !validReasons.includes(s)).map((s) => ({
-            path: '/admin/submissions/550e8400-e29b-41d4-a716-446655440003/statuses',
+            path: '/submissions/550e8400-e29b-41d4-a716-446655440003/statuses',
             method: 'POST' as const,
             options: {
               pathParameters: { id: '550e8400-e29b-41d4-a716-446655440003' },
@@ -1463,7 +1463,7 @@ describe('Property 12: Error Response Shape Consistency', () => {
           })),
           // Missing notes for reason=other
           fc.constant({
-            path: '/admin/submissions/550e8400-e29b-41d4-a716-446655440003/statuses',
+            path: '/submissions/550e8400-e29b-41d4-a716-446655440003/statuses',
             method: 'POST' as const,
             options: {
               pathParameters: { id: '550e8400-e29b-41d4-a716-446655440003' },

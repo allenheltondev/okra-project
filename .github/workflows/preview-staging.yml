@@ -20,6 +20,10 @@ jobs:
   deploy-preview:
     if: github.event.action != 'closed'
     runs-on: ubuntu-latest
+    outputs:
+      api_base_url: ${{ steps.api.outputs.api_base_url }}
+      admin_api_base_url: ${{ steps.admin-api.outputs.admin_api_base_url }}
+      ci_auth_function_name: ${{ steps.ci-auth-fn.outputs.ci_auth_function_name }}
     env:
       STACK_NAME: okra-project-preview-pr-${{ github.event.pull_request.number }}
 
@@ -71,10 +75,16 @@ jobs:
         working-directory: backend
         env:
           DATABASE_URL_STAGING: ${{ secrets.DATABASE_URL_STAGING }}
+          CI_ADMIN_USERNAME: ${{ secrets.CI_ADMIN_USERNAME }}
+          CI_ADMIN_PASSWORD: ${{ secrets.CI_ADMIN_PASSWORD }}
+          SHARED_USER_POOL_ID: ${{ secrets.SHARED_USER_POOL_ID_STAGING }}
+          SHARED_USER_POOL_CLIENT_ID: ${{ secrets.SHARED_USER_POOL_CLIENT_ID_STAGING }}
         run: |
           ESCAPED_DATABASE_URL=$(printf '%s' "$DATABASE_URL_STAGING" | sed 's/[&|]/\\&/g')
+          ESCAPED_CI_USERNAME=$(printf '%s' "$CI_ADMIN_USERNAME" | sed 's/[&|]/\\&/g')
+          ESCAPED_CI_PASSWORD=$(printf '%s' "$CI_ADMIN_PASSWORD" | sed 's/[&|]/\\&/g')
           export STACK_NAME_PREVIEW="$STACK_NAME"
-          sed "s|__DATABASE_URL__|${ESCAPED_DATABASE_URL}|g; s|__STACK_NAME_PREVIEW__|${STACK_NAME_PREVIEW}|g" samconfig.template.toml > samconfig.generated.toml
+          sed "s|__DATABASE_URL__|${ESCAPED_DATABASE_URL}|g; s|__STACK_NAME_PREVIEW__|${STACK_NAME_PREVIEW}|g; s|__SHARED_USER_POOL_ID__|${SHARED_USER_POOL_ID}|g; s|__SHARED_USER_POOL_CLIENT_ID__|${SHARED_USER_POOL_CLIENT_ID}|g; s|__CI_ADMIN_USERNAME__|${ESCAPED_CI_USERNAME}|g; s|__CI_ADMIN_PASSWORD__|${ESCAPED_CI_PASSWORD}|g" samconfig.template.toml > samconfig.generated.toml
 
       - name: Recover preview stack if stuck in ROLLBACK_COMPLETE
         shell: bash
@@ -106,10 +116,28 @@ jobs:
           API_BASE_URL="${API_ROOT%/}/api"
           echo "api_base_url=$API_BASE_URL" >> "$GITHUB_OUTPUT"
 
-      - name: Run integration tests against preview backend
-        env:
-          API_BASE_URL: ${{ steps.api.outputs.api_base_url }}
-        run: npm run test:integration
+      - name: Resolve preview Admin API base URL
+        id: admin-api
+        run: |
+          ADMIN_ROOT=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --query "Stacks[0].Outputs[?OutputKey=='AdminApiUrl'].OutputValue" \
+            --output text)
+          ADMIN_API_BASE_URL="${ADMIN_ROOT%/}/admin"
+          echo "admin_api_base_url=$ADMIN_API_BASE_URL" >> "$GITHUB_OUTPUT"
+
+      - name: Resolve CI auth function name
+        id: ci-auth-fn
+        run: |
+          FUNCTION_NAME=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --query "Stacks[0].Outputs[?OutputKey=='CiAuthTokenFunctionName'].OutputValue" \
+            --output text)
+          if [ -z "$FUNCTION_NAME" ] || [ "$FUNCTION_NAME" = "None" ] || [ "$FUNCTION_NAME" = "NONE" ]; then
+            echo "CiAuthTokenFunctionName stack output is required for integration test auth."
+            exit 1
+          fi
+          echo "ci_auth_function_name=$FUNCTION_NAME" >> "$GITHUB_OUTPUT"
 
       - name: Build frontend
         run: npm run --workspace okra-frontend build
@@ -152,6 +180,55 @@ jobs:
               issue_number: context.payload.pull_request.number,
               body
             });
+
+  integration-tests:
+    if: github.event.action != 'closed'
+    needs: deploy-preview
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js 24
+        uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+
+      - name: Configure AWS credentials (stage)
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          role-to-assume: ${{ secrets.AWS_DEPLOY_ROLE_STAGE }}
+          aws-region: ${{ env.AWS_REGION }}
+
+      - name: Get CI admin token from Lambda
+        id: ci-auth
+        run: |
+          aws lambda invoke \
+            --function-name "${{ needs.deploy-preview.outputs.ci_auth_function_name }}" \
+            --payload '{}' \
+            --cli-binary-format raw-in-base64-out \
+            ci-auth-response.json > /dev/null
+          ADMIN_TOKEN=$(jq -r '.accessToken' ci-auth-response.json)
+          if [ -z "$ADMIN_TOKEN" ] || [ "$ADMIN_TOKEN" = "null" ]; then
+            echo "Failed to extract accessToken from CI auth Lambda response."
+            cat ci-auth-response.json
+            exit 1
+          fi
+          echo "::add-mask::$ADMIN_TOKEN"
+          echo "admin_token=$ADMIN_TOKEN" >> "$GITHUB_OUTPUT"
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Run integration tests
+        env:
+          API_BASE_URL: ${{ needs.deploy-preview.outputs.api_base_url }}
+          ADMIN_API_BASE_URL: ${{ needs.deploy-preview.outputs.admin_api_base_url }}
+          ADMIN_TOKEN: ${{ steps.ci-auth.outputs.admin_token }}
+          DATABASE_URL: ${{ secrets.DATABASE_URL_STAGING }}
+        run: npm run test:integration
 
   destroy-preview:
     if: github.event.action == 'closed'
