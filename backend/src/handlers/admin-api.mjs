@@ -3,19 +3,6 @@ import { registerAdminRoutes } from './admin-routes.mjs';
 
 const app = new Router();
 
-app.get('/health', async ({ event }) => {
-  const authorizer = event.requestContext?.authorizer ?? {};
-
-  return {
-    statusCode: 200,
-    body: {
-      ok: true,
-      admin: true,
-      subject: authorizer.sub ?? 'unknown'
-    }
-  };
-});
-
 registerAdminRoutes(app);
 
 app.notFound(() => {

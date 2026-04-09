@@ -4,55 +4,6 @@ info:
   version: 0.1.0
   description: API contract for Okra Project backend.
 paths:
-  /health:
-    get:
-      operationId: getHealth
-      summary: Health check endpoint
-      tags:
-        - system
-      responses:
-        '200':
-          description: Service is healthy
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - ok
-                properties:
-                  ok:
-                    type: boolean
-                    example: true
-                  service:
-                    type: string
-                    example: okra-project-api
-                  runtime:
-                    type: string
-
-  /version:
-    get:
-      operationId: getVersion
-      summary: API version endpoint
-      tags:
-        - system
-      responses:
-        '200':
-          description: Service version response
-          content:
-            application/json:
-              schema:
-                type: object
-                required:
-                  - ok
-                  - version
-                properties:
-                  ok:
-                    type: boolean
-                    example: true
-                  version:
-                    type: string
-                    example: 0.1.0
-
   /photos:
     post:
       operationId: createPhotoUploadIntent

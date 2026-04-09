@@ -111,14 +111,11 @@ function makeAdminApiEvent(path, method = 'GET', authorizer = {}) {
   };
 }
 
-describe('admin api health reads authorizer context', () => {
-  it('returns subject from authorizer context', async () => {
+describe('admin api returns 404 for unknown routes', () => {
+  it('returns 404 for unregistered path', async () => {
     const res = await adminApiHandler(
-      makeAdminApiEvent('/health', 'GET', { sub: 'admin-456' })
+      makeAdminApiEvent('/does-not-exist', 'GET', { sub: 'admin-456' })
     );
-    expect(res.statusCode).toBe(200);
-    const body = JSON.parse(String(res.body));
-    expect(body.admin).toBe(true);
-    expect(body.subject).toBe('admin-456');
+    expect(res.statusCode).toBe(404);
   });
 });

@@ -134,16 +134,6 @@ async function run() {
   // --- Public endpoint checks (Task 3.2) ---
   console.log('\n=== Public Endpoint Checks ===');
   {
-    const res = await publicApi.request('/health');
-    reporter.assert('public', res.status === 200, `GET /health returns 200 (got ${res.status})`, res.json);
-    reporter.assert('public', res.json?.ok === true, 'GET /health returns ok=true', res.json);
-  }
-  {
-    const res = await publicApi.request('/version');
-    reporter.assert('public', res.status === 200, `GET /version returns 200 (got ${res.status})`, res.json);
-    reporter.assert('public', typeof res.json?.version === 'string', 'GET /version returns version string', res.json);
-  }
-  {
     const res = await publicApi.request('/okra');
     reporter.assert('public', res.status === 200, `GET /okra returns 200 (got ${res.status})`, res.json);
     reporter.assert('public', res.json?.total_count !== undefined, 'GET /okra has total_count', res.json);
