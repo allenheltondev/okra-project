@@ -1,3 +1,5 @@
+import './ContributorFields.css';
+
 export interface ContributorFieldsProps {
   name: string;
   story: string;
@@ -22,9 +24,10 @@ export function ContributorFields({
   return (
     <div className="contributor-fields">
       <div className="contributor-fields__group">
-        <label htmlFor={nameId}>Your name (optional)</label>
+        <label className="contributor-fields__label" htmlFor={nameId}>Your name (optional)</label>
         <input
           id={nameId}
+          className="contributor-fields__input"
           type="text"
           maxLength={NAME_MAX}
           value={name}
@@ -37,14 +40,15 @@ export function ContributorFields({
       </div>
 
       <div className="contributor-fields__group">
-        <label htmlFor={storyId}>Your garden story (optional)</label>
+        <label className="contributor-fields__label" htmlFor={storyId}>Your garden story (optional)</label>
         <textarea
           id={storyId}
+          className="contributor-fields__textarea"
           maxLength={STORY_MAX}
           value={story}
           onChange={(e) => onStoryChange(e.target.value)}
           disabled={disabled}
-          rows={4}
+          rows={2}
         />
         <span className="contributor-fields__count">
           {story.length}/{STORY_MAX}

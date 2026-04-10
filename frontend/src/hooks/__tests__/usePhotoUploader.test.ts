@@ -59,13 +59,13 @@ describe('validateFile', () => {
     expect(validateFile(file)).toBe('Only JPEG, PNG, and WebP images are accepted');
   });
 
-  it('rejects file exceeding 10 MB', () => {
-    const file = makeFile('big.jpg', 10 * 1024 * 1024 + 1, 'image/jpeg');
-    expect(validateFile(file)).toBe('File exceeds the 10 MB size limit');
+  it('rejects file exceeding 3 MB', () => {
+    const file = makeFile('big.jpg', 3 * 1024 * 1024 + 1, 'image/jpeg');
+    expect(validateFile(file)).toBe('File exceeds the 3 MB size limit');
   });
 
-  it('accepts file exactly 10 MB', () => {
-    const file = makeFile('exact.jpg', 10 * 1024 * 1024, 'image/jpeg');
+  it('accepts file exactly 3 MB', () => {
+    const file = makeFile('exact.jpg', 3 * 1024 * 1024, 'image/jpeg');
     expect(validateFile(file)).toBeNull();
   });
 });

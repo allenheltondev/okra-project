@@ -77,16 +77,6 @@ export function SubmitSection({
 
   return (
     <div style={styles.wrapper}>
-      <button
-        type="button"
-        onClick={onSubmit}
-        disabled={isDisabled}
-        style={isDisabled ? styles.buttonDisabled : styles.buttonEnabled}
-        aria-describedby={feedbackId}
-      >
-        {isSubmitting ? 'Submitting…' : 'Submit your garden'}
-      </button>
-
       <div id={feedbackId}>
         {showMissing && (
           <ul style={styles.missingList} aria-label="Missing fields">
@@ -102,6 +92,16 @@ export function SubmitSection({
           </p>
         )}
       </div>
+
+      <button
+        type="button"
+        onClick={onSubmit}
+        disabled={isDisabled}
+        style={isDisabled ? styles.buttonDisabled : styles.buttonEnabled}
+        aria-describedby={feedbackId}
+      >
+        {isSubmitting ? 'Submitting…' : 'Submit your garden'}
+      </button>
     </div>
   );
 }

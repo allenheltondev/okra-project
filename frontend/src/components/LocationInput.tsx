@@ -1,6 +1,7 @@
-import { useCallback } from 'react';
-import { MapContainer, TileLayer, Marker, useMapEvents } from 'react-leaflet';
+import { useCallback, useState } from 'react';
+import { MapContainer, TileLayer, Marker, Circle, useMapEvents } from 'react-leaflet';
 import type { LocationData } from '../hooks/useLocationPicker';
+import type { PrivacyMode } from '../hooks/useSubmissionForm';
 import './LocationInput.css';
 
 export interface LocationInputProps {
@@ -12,10 +13,19 @@ export interface LocationInputProps {
   isGeocoding: boolean;
   disabled: boolean;
   validationError?: string;
+  privacyMode?: PrivacyMode;
 }
 
 const DEFAULT_CENTER: [number, number] = [20, 0];
 const DEFAULT_ZOOM = 2;
+
+/** Approximate radius in meters for each privacy mode, based on backend fuzzing radii */
+const PRIVACY_RADIUS_METERS: Record<string, number> = {
+  exact: 0,
+  nearby: 550,
+  neighborhood: 2200,
+  city: 5500,
+};
 
 /** Inner component that listens for map click events. */
 function MapClickHandler({
@@ -44,12 +54,16 @@ export function LocationInput({
   isGeocoding,
   disabled,
   validationError,
+  privacyMode = 'city',
 }: LocationInputProps) {
   const textInputId = 'location-text-input';
   const errorId = 'location-error';
   const hasCoordinates = location.displayLat !== null && location.displayLng !== null;
+  const [showMap, setShowMap] = useState(false);
+  const mapVisible = showMap || hasCoordinates;
 
   const handleFindOnMap = useCallback(() => {
+    setShowMap(true);
     if (location.rawLocationText.trim()) {
       onGeocode(location.rawLocationText);
     }
@@ -98,27 +112,47 @@ export function LocationInput({
         </p>
       )}
 
-      <div className="location-input__map-wrapper">
-        <MapContainer
-          center={mapCenter}
-          zoom={mapZoom}
-          scrollWheelZoom
-          className="location-input__map"
-          key={hasCoordinates ? `${location.displayLat},${location.displayLng}` : 'default'}
+      {mapVisible && (
+        <div className="location-input__map-wrapper">
+          <MapContainer
+            center={mapCenter}
+            zoom={mapZoom}
+            scrollWheelZoom
+            className="location-input__map"
+            key={hasCoordinates ? `${location.displayLat},${location.displayLng}` : 'default'}
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <MapClickHandler
+              onCoordinatesChange={onCoordinatesChange}
+              disabled={disabled}
+            />
+            {hasCoordinates && (
+              <Marker position={[location.displayLat!, location.displayLng!]} />
+            )}
+            {hasCoordinates && privacyMode !== 'exact' && (
+              <Circle
+                center={[location.displayLat!, location.displayLng!]}
+                radius={PRIVACY_RADIUS_METERS[privacyMode] ?? 0}
+                pathOptions={{ color: '#3f7d3a', fillColor: '#3f7d3a', fillOpacity: 0.1, weight: 1 }}
+              />
+            )}
+          </MapContainer>
+        </div>
+      )}
+
+      {!mapVisible && (
+        <button
+          className="location-input__show-map-btn"
+          type="button"
+          onClick={() => setShowMap(true)}
+          disabled={disabled}
         >
-          <TileLayer
-            attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-            url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-          />
-          <MapClickHandler
-            onCoordinatesChange={onCoordinatesChange}
-            disabled={disabled}
-          />
-          {hasCoordinates && (
-            <Marker position={[location.displayLat!, location.displayLng!]} />
-          )}
-        </MapContainer>
-      </div>
+          Or click to pick on map
+        </button>
+      )}
 
       {hasCoordinates && (
         <p className="location-input__coords">

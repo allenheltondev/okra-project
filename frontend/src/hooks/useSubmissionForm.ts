@@ -27,6 +27,7 @@ const MAX_STORY_LENGTH = 2000;
 interface ValidationInput {
   uploadedPhotoIds: string[];
   hasUploadingPhotos: boolean;
+  hasFailedPhotos: boolean;
   location: LocationData;
 }
 
@@ -34,7 +35,7 @@ function computeValidation(input: ValidationInput): { canSubmit: boolean; missin
   const missing: string[] = [];
 
   if (input.uploadedPhotoIds.length < 1) {
-    missing.push('At least one photo is required');
+    missing.push(input.hasFailedPhotos ? 'Photo uploads failed — retry or add new photos' : 'At least one photo is required');
   }
 
   if (input.location.rawLocationText.trim().length === 0) {
@@ -59,6 +60,7 @@ export function useSubmissionForm(
   uploadedPhotoIds: string[],
   hasUploadingPhotos: boolean,
   location: LocationData,
+  hasFailedPhotos: boolean = false,
 ): UseSubmissionFormReturn {
   const [contributorName, setContributorNameRaw] = useState('');
   const [storyText, setStoryTextRaw] = useState('');
@@ -76,8 +78,8 @@ export function useSubmissionForm(
   }, []);
 
   const { canSubmit, missingFields } = useMemo(
-    () => computeValidation({ uploadedPhotoIds, hasUploadingPhotos, location }),
-    [uploadedPhotoIds, hasUploadingPhotos, location],
+    () => computeValidation({ uploadedPhotoIds, hasUploadingPhotos, hasFailedPhotos, location }),
+    [uploadedPhotoIds, hasUploadingPhotos, hasFailedPhotos, location],
   );
 
   const submit = useCallback(

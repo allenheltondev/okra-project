@@ -28,28 +28,40 @@ export function SubmissionModal({ open, onClose }: SubmissionModalProps) {
     photoUploader.uploadedPhotoIds,
     photoUploader.photos.some((p) => p.state === 'uploading'),
     locationPicker.location,
+    photoUploader.photos.some((p) => p.state === 'failed'),
   );
 
   // Section completion indicators
   const photosComplete = photoUploader.hasUploaded;
   const aboutComplete = form.contributorName.trim().length > 0 || form.storyText.trim().length > 0;
   const locationComplete = locationPicker.location.displayLat !== null && locationPicker.location.displayLng !== null;
+  const [privacyTouched, setPrivacyTouched] = useState(false);
+
+  // Use refs to avoid re-creating initiateClose on every state change
+  const photosRef = useRef(photoUploader.photos);
+  photosRef.current = photoUploader.photos;
+  const locationRef = useRef(locationPicker.location);
+  locationRef.current = locationPicker.location;
+  const formRef = useRef(form);
+  formRef.current = form;
 
   // Close flow: check for unsaved progress
   const initiateClose = useCallback(() => {
-    if (form.hasUnsavedProgress(photoUploader.photos, locationPicker.location)) {
+    if (formRef.current.hasUnsavedProgress(photosRef.current, locationRef.current)) {
       setShowConfirm(true);
     } else {
       onClose();
     }
-  }, [form, photoUploader.photos, locationPicker.location, onClose]);
+  }, [onClose]);
 
   const handleDiscard = useCallback(() => {
     setShowConfirm(false);
+    setPrivacyTouched(false);
     photoUploader.reset();
+    locationPicker.reset();
     form.reset();
     onClose();
-  }, [photoUploader, form, onClose]);
+  }, [photoUploader, locationPicker, form, onClose]);
 
   const handleCancelClose = useCallback(() => {
     setShowConfirm(false);
@@ -106,7 +118,9 @@ export function SubmissionModal({ open, onClose }: SubmissionModalProps) {
 
     const timer = setTimeout(() => {
       photoUploader.reset();
+      locationPicker.reset();
       form.reset();
+      setPrivacyTouched(false);
       onClose();
     }, 2000);
 
@@ -157,9 +171,11 @@ export function SubmissionModal({ open, onClose }: SubmissionModalProps) {
                   photos={photoUploader.photos}
                   onAddFiles={photoUploader.addFiles}
                   onRetry={photoUploader.retryUpload}
+                  onRetryAll={photoUploader.retryAll}
                   onRemove={photoUploader.removePhoto}
                   disabled={form.isSubmitting}
                   rateLimitUntil={photoUploader.rateLimitUntil}
+                  hasError={photoUploader.photos.length > 0 && !photoUploader.hasUploaded && photoUploader.photos.some(p => p.state === 'failed')}
                 />
               </section>
 
@@ -188,16 +204,17 @@ export function SubmissionModal({ open, onClose }: SubmissionModalProps) {
                   geocodeError={locationPicker.geocodeError}
                   isGeocoding={locationPicker.isGeocoding}
                   disabled={form.isSubmitting}
+                  privacyMode={form.privacyMode}
                 />
               </section>
 
               <section className="submission-modal__section">
                 <h3 className="submission-modal__section-heading">
-                  Privacy <span className="submission-modal__check" aria-label="Section complete">✓</span>
+                  Privacy {privacyTouched && <span className="submission-modal__check" aria-label="Section complete">✓</span>}
                 </h3>
                 <PrivacySelector
                   value={form.privacyMode}
-                  onChange={form.setPrivacyMode}
+                  onChange={(mode) => { setPrivacyTouched(true); form.setPrivacyMode(mode); }}
                   disabled={form.isSubmitting}
                 />
               </section>

@@ -23,7 +23,7 @@ export interface UsePhotoUploaderReturn {
 }
 
 const ALLOWED_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
-const MAX_SIZE = 10 * 1024 * 1024; // 10 MB
+const MAX_SIZE = 3 * 1024 * 1024; // 3 MB
 const MAX_PHOTOS = 5;
 const CONCURRENCY_LIMIT = 3;
 
@@ -37,7 +37,7 @@ export function validateFile(file: File): string | null {
     return 'Only JPEG, PNG, and WebP images are accepted';
   }
   if (file.size > MAX_SIZE) {
-    return 'File exceeds the 10 MB size limit';
+    return 'File exceeds the 3 MB size limit';
   }
   return null;
 }
@@ -205,6 +205,19 @@ export function usePhotoUploader(): UsePhotoUploaderReturn {
     [enqueueUpload, photos, rateLimitUntil],
   );
 
+  const retryAll = useCallback(() => {
+    if (rateLimitUntil && Date.now() < rateLimitUntil) return;
+    const failed = photos.filter((p) => p.state === 'failed' && p.previewUrl);
+    setPhotos((prev) =>
+      prev.map((p) =>
+        p.state === 'failed' && p.previewUrl ? { ...p, state: 'uploading', photoId: null, errorMessage: undefined } : p,
+      ),
+    );
+    for (const entry of failed) {
+      enqueueUpload(entry.localId, entry.file);
+    }
+  }, [enqueueUpload, photos, rateLimitUntil]);
+
   const removePhoto = useCallback((localId: string) => {
     setPhotos((prev) => {
       const entry = prev.find((p) => p.localId === localId);
@@ -238,6 +251,7 @@ export function usePhotoUploader(): UsePhotoUploaderReturn {
     photos,
     addFiles,
     retryUpload,
+    retryAll,
     removePhoto,
     reset,
     rateLimitUntil,

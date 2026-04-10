@@ -13,6 +13,7 @@ export interface UseLocationPickerReturn {
   geocode: (text: string) => Promise<void>;
   geocodeError: string | null;
   isGeocoding: boolean;
+  reset: () => void;
 }
 
 const INITIAL_LOCATION: LocationData = {
@@ -82,6 +83,12 @@ export function useLocationPicker(): UseLocationPickerReturn {
     }
   }, []);
 
+  const reset = useCallback(() => {
+    setLocation(INITIAL_LOCATION);
+    setGeocodeError(null);
+    setIsGeocoding(false);
+  }, []);
+
   return {
     location,
     setRawText,
@@ -89,5 +96,6 @@ export function useLocationPicker(): UseLocationPickerReturn {
     geocode,
     geocodeError,
     isGeocoding,
+    reset,
   };
 }
