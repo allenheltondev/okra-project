@@ -121,7 +121,7 @@ export function usePhotoUploader(): UsePhotoUploaderReturn {
         uploadSinglePhoto(file, onStateChange)
           .catch((err: unknown) => {
             if (err && typeof err === 'object' && 'rateLimited' in err) {
-              const rlErr = err as { retryAfterSeconds: number };
+              const rlErr = err as unknown as { retryAfterSeconds: number };
               setRateLimitUntil(Date.now() + rlErr.retryAfterSeconds * 1000);
               setPhotos((prev) =>
                 prev.map((p) =>
