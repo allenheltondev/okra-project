@@ -15,6 +15,7 @@ export interface UsePhotoUploaderReturn {
   photos: PhotoEntry[];
   addFiles: (files: File[]) => void;
   retryUpload: (localId: string) => void;
+  retryAll: () => void;
   removePhoto: (localId: string) => void;
   reset: () => void;
   rateLimitUntil: number | null;
