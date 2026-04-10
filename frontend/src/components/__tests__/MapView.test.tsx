@@ -162,7 +162,7 @@ describe('MapView', () => {
 
       const ctaLink = screen.getByText('Share your garden');
       expect(ctaLink).toBeTruthy();
-      expect(ctaLink.getAttribute('href')).toBe('/submit');
+      expect(ctaLink.tagName).toBe('BUTTON');
     });
   });
 

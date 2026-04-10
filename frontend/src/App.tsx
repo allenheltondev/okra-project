@@ -3,6 +3,7 @@ import 'leaflet/dist/leaflet.css';
 import 'leaflet.markercluster/dist/MarkerCluster.css';
 import 'leaflet.markercluster/dist/MarkerCluster.Default.css';
 import { MapView, type PinData, type StatsData } from './components/MapView';
+import { SubmissionModal } from './components/SubmissionModal';
 import './App.css';
 
 /** Shorten long country names for the sidebar display */
@@ -32,6 +33,7 @@ export function App() {
   const [pins, setPins] = useState<PinData[]>([]);
   const [stats, setStats] = useState<StatsData | null>(null);
   const [focusPin, setFocusPin] = useState<PinData | null>(null);
+  const [isModalOpen, setIsModalOpen] = useState(false);
 
   const handlePinsLoaded = useCallback((data: PinData[]) => setPins(data), []);
   const handleStatsLoaded = useCallback((data: StatsData) => setStats(data), []);
@@ -107,9 +109,9 @@ export function App() {
               </ul>
               <div className="recent-card__divider" />
               <p className="recent-card__return-prompt">Already growing? Show the world.</p>
-              <a href="/submit" className="recent-card__cta">
+              <button type="button" className="recent-card__cta" onClick={() => setIsModalOpen(true)}>
                 My Seeds Sprouted &rarr;
-              </a>
+              </button>
             </div>
           )}
         </div>
@@ -120,6 +122,7 @@ export function App() {
             onPinsLoaded={handlePinsLoaded}
             onStatsLoaded={handleStatsLoaded}
             onPinSelected={setFocusPin}
+            onOpenSubmission={() => setIsModalOpen(true)}
           />
         </div>
       </main>
@@ -135,6 +138,8 @@ export function App() {
           @oliviasgardentx
         </a>
       </footer>
+
+      <SubmissionModal open={isModalOpen} onClose={() => setIsModalOpen(false)} />
     </div>
   );
 }
